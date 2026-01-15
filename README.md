@@ -1,20 +1,69 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# KeySight Security Platform
 
-This contains everything you need to run your app locally.
+![Version](https://img.shields.io/badge/version-1.0.0--RC1-blue)
+![Security](https://img.shields.io/badge/security-DETERMINISTIC-green)
+![AI](https://img.shields.io/badge/AI-NONE-red)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1zYMr6tvffJkEm2sQ7FQML5Wa4t7pCpHl
+**KeySight** is a security-first, browser-based surveillance system designed for zero-trust environments. It focuses on local ownership, deterministic behavior (No-AI), and verifiable data integrity using client-side cryptography.
 
-## Run Locally
+## 🛡️ Core Philosophy
 
-**Prerequisites:**  Node.js
+1.  **Local-Only:** No data is ever transmitted to cloud servers. All footage and logs remain in your browser's secure storage.
+2.  **Deterministic:** Motion detection and alerts use strict pixel-difference algorithms, not probabilistic machine learning.
+3.  **Verifiable:** Every action and storage block is cryptographically hashed and chained (Blockchain-lite architecture).
+4.  **Fail-Closed:** Without the Master Access Key, data is mathematically inaccessible.
 
+## 🚀 Features
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 📹 Secure Surveillance Dashboard
+*   **Real-time Feeds:** Low-latency video streaming with HUD overlays.
+*   **Motion Detection:** Configurable pixel-threshold algorithms with visual bounding boxes.
+*   **Privacy Masking:** Client-side blurring of sensitive regions.
+*   **PTZ Control:** Pan-Tilt-Zoom interface for supported hardware.
+
+### 📡 Network Reconnaissance (Active Scan)
+*   **Subnet Scanner:** Scans local IP ranges (e.g., `192.168.1.x`) for active devices.
+*   **Port Probing:** Detects open HTTP/HTTPS ports using opaque fetch requests.
+*   **Device Verification:** Challenge-response mechanism to verify ownership of discovered assets before adding them to the dashboard.
+*   **Signal Analysis:** Real-time jitter and latency monitoring.
+
+### 🔐 Encrypted Local Storage
+*   **AES-GCM-256:** All video clips, snapshots, and logs are encrypted at rest using a key derived from your Master Password.
+*   **Immutable Ledger:** Audit logs are stored as a hash chain; any tampering breaks the verification chain.
+*   **Evidence Locking:** Mark specific clips as "Evidence" to prevent deletion (Retention Policy overrides).
+*   **Secure Export:** Generate signed ZIP packages containing footage and a cryptographic manifest.
+
+### 👮‍♂️ Audit & Compliance
+*   **Immutable Logs:** Every system event (Auth, Motion, Config Change) is logged permanently.
+*   **Hardware Binding:** The Master Key is cryptographically bound to the specific browser/device fingerprint.
+*   **Resource Monitor:** Real-time tracking of CPU, RAM, and Storage I/O to ensure system stability.
+
+## 🛠️ Technical Stack
+
+*   **Frontend:** React 18, TypeScript, Tailwind CSS
+*   **Cryptography:** Web Crypto API (SubtleCrypto) for SHA-256 hashing and AES-GCM encryption.
+*   **Visualization:** Recharts for signal data, Canvas API for motion processing.
+*   **Storage:** Custom `SecureStorage` wrapper around IndexedDB/LocalStorage.
+
+## ⚡ Quick Start
+
+1.  **Initialize:** On first load, generate a **Master Access Key**.
+    *   *Warning:* Save this key securely. There is no password reset mechanism.
+2.  **Bind Device:** Confirm the hardware fingerprint binding.
+3.  **Configure:**
+    *   Go to **Settings** to adjust Motion Sensitivity (Threshold).
+    *   Set Retention Policy (default: 7 days).
+4.  **Add Cameras:**
+    *   Manually add RTSP/HTTP streams.
+    *   Or use **NET_RECON** to scan your network for devices.
+
+## ⚠️ Security Notice
+
+*   **Ephemeral Nature:** Clearing your browser cache/data **WILL** delete all encrypted footage and logs.
+*   **HTTPS Required:** For full functionality (camera access, crypto), the application must run over HTTPS or localhost.
+*   **CORS:** The Network Scanner relies on browser fetch behavior; some local devices may require CORS configuration to be fully visible.
+
+---
+
+*KeySight Security © 2024 - Deterministic Surveillance Systems*
