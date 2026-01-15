@@ -456,33 +456,71 @@ const App: React.FC = () => {
         {/* Left Col: Camera Dashboard */}
         <div className="flex-none lg:h-full lg:col-span-3 flex flex-col gap-4 min-h-[500px]">
           
-          {/* Dashboard Control Bar */}
-          <div className="bg-security-panel border border-security-border p-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shrink-0">
-             <div className="flex items-center gap-3 w-full sm:w-auto">
-                 <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-security-dim" />
-                    <input 
-                       type="text" 
-                       placeholder="Search devices..." 
-                       value={searchQuery}
-                       onChange={e => setSearchQuery(e.target.value)}
-                       className="w-full bg-black border border-security-border text-xs font-mono py-2 pl-9 pr-2 focus:border-security-accent outline-none text-security-text"
-                    />
-                 </div>
-                 <div className="h-8 w-px bg-security-border hidden sm:block"></div>
-                 <div className="flex gap-1">
-                    <button onClick={() => setFilterStatus('ALL')} className={`px-3 py-1.5 text-[10px] font-mono font-bold border ${filterStatus === 'ALL' ? 'bg-security-text text-black border-security-text' : 'text-security-dim border-transparent'}`}>ALL</button>
-                    <button onClick={() => setFilterStatus('ONLINE')} className={`px-3 py-1.5 text-[10px] font-mono font-bold border ${filterStatus === 'ONLINE' ? 'bg-security-accent text-black border-security-accent' : 'text-security-dim border-transparent'}`}>ONLINE</button>
-                    <button onClick={() => setFilterStatus('OFFLINE')} className={`px-3 py-1.5 text-[10px] font-mono font-bold border ${filterStatus === 'OFFLINE' ? 'bg-security-alert text-black border-security-alert' : 'text-security-dim border-transparent'}`}>OFFLINE</button>
-                 </div>
-             </div>
-             <button 
-                onClick={() => setGroupByLocation(!groupByLocation)}
-                className={`flex items-center gap-2 px-3 py-1.5 border text-[10px] font-mono font-bold transition-colors ${groupByLocation ? 'bg-security-dim/20 border-security-text text-security-text' : 'border-security-border text-security-dim hover:text-white'}`}
-             >
-                 {groupByLocation ? <List className="w-3 h-3" /> : <Grid className="w-3 h-3" />}
-                 {groupByLocation ? 'GROUP: LOCATION' : 'VIEW: GRID'}
-             </button>
+          {/* STICKY HEADER WRAPPER (Mobile: Sticks to top. Desktop: Stays at top of non-scrolling area) */}
+          <div className="flex flex-col gap-4 sticky top-0 z-30 bg-security-black pb-1 -mt-1 pt-1">
+              {/* System Status & Action Bar (MOVED UP) */}
+              <div className="bg-security-panel border border-security-border p-3 flex flex-col sm:flex-row items-center justify-between shrink-0 gap-3 shadow-md">
+                <div className="flex gap-4 w-full sm:w-auto justify-between sm:justify-start">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-security-dim font-mono">SYSTEM STATUS</span>
+                        <span className="text-xs font-mono text-security-accent font-bold flex items-center gap-1">
+                            <Lock className="w-3 h-3" /> ARMED
+                        </span>
+                    </div>
+                    <div className="w-px h-8 bg-security-border hidden sm:block"></div>
+                    <div className="flex flex-col items-end sm:items-start">
+                        <span className="text-[10px] text-security-dim font-mono">ENCRYPTION ENGINE</span>
+                        <span className="text-xs font-mono text-white flex items-center gap-1">
+                            <Database className="w-3 h-3 text-security-dim" /> {settings.encryptionEnabled ? 'AES-256-GCM' : 'DISABLED'}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <button 
+                    onClick={() => setIsAddingCamera(true)}
+                    className="flex-1 sm:flex-none bg-security-accent text-black border border-security-accent px-4 py-3 sm:py-2 text-xs font-mono flex items-center justify-center gap-2 hover:bg-security-accent/90 transition-colors font-bold touch-manipulation"
+                    >
+                    <Plus className="w-3 h-3" /> ADD CAMERA
+                    </button>
+                    <button 
+                    onClick={handleExport}
+                    className="flex-1 sm:flex-none bg-security-border hover:bg-white/10 text-security-text border border-security-text/20 px-4 py-3 sm:py-2 text-xs font-mono flex items-center justify-center gap-2 transition-colors touch-manipulation"
+                    >
+                    <Download className="w-3 h-3" />
+                    EXPORT
+                    </button>
+                </div>
+              </div>
+
+              {/* Dashboard Control Bar (Search/Filter) */}
+              <div className="bg-security-panel border border-security-border p-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shrink-0 shadow-md">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-security-dim" />
+                        <input 
+                        type="text" 
+                        placeholder="Search devices..." 
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="w-full bg-black border border-security-border text-xs font-mono py-2 pl-9 pr-2 focus:border-security-accent outline-none text-security-text"
+                        />
+                    </div>
+                    <div className="h-8 w-px bg-security-border hidden sm:block"></div>
+                    <div className="flex gap-1">
+                        <button onClick={() => setFilterStatus('ALL')} className={`px-3 py-1.5 text-[10px] font-mono font-bold border ${filterStatus === 'ALL' ? 'bg-security-text text-black border-security-text' : 'text-security-dim border-transparent'}`}>ALL</button>
+                        <button onClick={() => setFilterStatus('ONLINE')} className={`px-3 py-1.5 text-[10px] font-mono font-bold border ${filterStatus === 'ONLINE' ? 'bg-security-accent text-black border-security-accent' : 'text-security-dim border-transparent'}`}>ONLINE</button>
+                        <button onClick={() => setFilterStatus('OFFLINE')} className={`px-3 py-1.5 text-[10px] font-mono font-bold border ${filterStatus === 'OFFLINE' ? 'bg-security-alert text-black border-security-alert' : 'text-security-dim border-transparent'}`}>OFFLINE</button>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => setGroupByLocation(!groupByLocation)}
+                    className={`flex items-center gap-2 px-3 py-1.5 border text-[10px] font-mono font-bold transition-colors ${groupByLocation ? 'bg-security-dim/20 border-security-text text-security-text' : 'border-security-border text-security-dim hover:text-white'}`}
+                >
+                    {groupByLocation ? <List className="w-3 h-3" /> : <Grid className="w-3 h-3" />}
+                    {groupByLocation ? 'GROUP: LOCATION' : 'VIEW: GRID'}
+                </button>
+              </div>
           </div>
 
           {/* Camera Grid Area */}
@@ -515,40 +553,6 @@ const App: React.FC = () => {
              </div>
           </div>
           
-          {/* Bottom Control Bar */}
-          <div className="bg-security-panel border border-security-border p-3 flex flex-col sm:flex-row items-center justify-between shrink-0 gap-3">
-             <div className="flex gap-4 w-full sm:w-auto justify-between sm:justify-start">
-                <div className="flex flex-col">
-                    <span className="text-[10px] text-security-dim font-mono">SYSTEM STATUS</span>
-                    <span className="text-xs font-mono text-security-accent font-bold flex items-center gap-1">
-                        <Lock className="w-3 h-3" /> ARMED
-                    </span>
-                </div>
-                <div className="w-px h-8 bg-security-border hidden sm:block"></div>
-                <div className="flex flex-col items-end sm:items-start">
-                    <span className="text-[10px] text-security-dim font-mono">ENCRYPTION ENGINE</span>
-                    <span className="text-xs font-mono text-white flex items-center gap-1">
-                        <Database className="w-3 h-3 text-security-dim" /> {settings.encryptionEnabled ? 'AES-256-GCM' : 'DISABLED'}
-                    </span>
-                </div>
-             </div>
-
-             <div className="flex gap-2 w-full sm:w-auto">
-                <button 
-                  onClick={() => setIsAddingCamera(true)}
-                  className="flex-1 sm:flex-none bg-security-accent text-black border border-security-accent px-4 py-3 sm:py-2 text-xs font-mono flex items-center justify-center gap-2 hover:bg-security-accent/90 transition-colors font-bold touch-manipulation"
-                >
-                  <Plus className="w-3 h-3" /> ADD CAMERA
-                </button>
-                <button 
-                  onClick={handleExport}
-                  className="flex-1 sm:flex-none bg-security-border hover:bg-white/10 text-security-text border border-security-text/20 px-4 py-3 sm:py-2 text-xs font-mono flex items-center justify-center gap-2 transition-colors touch-manipulation"
-                >
-                  <Download className="w-3 h-3" />
-                  EXPORT
-                </button>
-             </div>
-          </div>
         </div>
 
         {/* Right Col: Data, Resources, Logs - Stacks below on mobile */}
