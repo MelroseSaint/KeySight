@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Server, AlertCircle, Copy, CheckCircle, Smartphone, Lock, Cpu, Globe } from 'lucide-react';
+import { Shield, Key, Server, AlertCircle, Copy, CheckCircle, Smartphone, Lock, Cpu, Globe, RefreshCw, Clock } from 'lucide-react';
 import { secureStorage } from '../utils/secureStorage';
 
 interface LoginScreenProps {
@@ -14,6 +14,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<'LOADING' | 'SETUP' | 'LOGIN' | 'MFA'>('LOADING');
   const [inputKey, setInputKey] = useState('');
   const [mfaCode, setMfaCode] = useState('');
+  const [totpCountdown, setTotpCountdown] = useState(30);
   const [generatedKey, setGeneratedKey] = useState('');
   const [savedConfirmed, setSavedConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,6 +60,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     };
     checkState();
   }, []);
+
+  // MFA TOTP Generator Effect
+  useEffect(() => {
+    let interval: number;
+    if (mode === 'MFA') {
+        const generateTotp = async () => {
+           // Deterministic generation based on key + time window (30s)
+           const timeStep = Math.floor(Date.now() / 30000);
+           const seed = inputKey + timeStep;
+           const hash = await secureStorage.sha256(seed);
+           
+           // Convert hex fragment to number for 6-digit code
+           const num = parseInt(hash.substring(0, 8), 16);
+           const code = (num % 1000000).toString().padStart(6, '0');
+           
+           setMfaCode(code);
+        };
+
+        generateTotp(); // Initial generation
+
+        // Sync loop
+        interval = window.setInterval(() => {
+            const now = Date.now();
+            const sec = 30 - (Math.floor(now / 1000) % 30);
+            setTotpCountdown(sec);
+            
+            // Regenerate on cycle start
+            if (sec === 30) {
+                generateTotp();
+            }
+        }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [mode, inputKey]);
 
   const generateNewKey = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -263,26 +298,39 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           ) : (
               <form onSubmit={handleMfaSubmit} className="space-y-6">
                  <div className="space-y-2">
-                    <label className="text-xs font-mono text-security-dim flex items-center gap-2">
-                       <Smartphone className="w-3 h-3" /> MFA AUTHENTICATOR CODE
-                    </label>
-                    <input 
-                      type="text"
-                      value={mfaCode}
-                      onChange={(e) => setMfaCode(e.target.value)}
-                      className="w-full bg-black border border-security-border text-security-text p-3 font-mono focus:border-security-accent focus:outline-none text-center text-xl tracking-[0.5em]"
-                      placeholder="000000"
-                      maxLength={6}
-                      autoFocus
-                    />
-                    <p className="text-[10px] text-security-dim text-center">(Simulated: Enter any 6 digits)</p>
+                    <div className="flex justify-between items-center">
+                        <label className="text-xs font-mono text-security-dim flex items-center gap-2">
+                           <Smartphone className="w-3 h-3" /> MFA AUTHENTICATOR CODE
+                        </label>
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-security-accent animate-pulse">
+                            <RefreshCw className="w-3 h-3" />
+                            SYNCED
+                        </div>
+                    </div>
+                    
+                    <div className="relative">
+                        <input 
+                          type="text"
+                          value={mfaCode}
+                          readOnly
+                          className="w-full bg-black border border-security-border text-security-accent p-3 font-mono focus:outline-none text-center text-xl tracking-[0.5em] cursor-default"
+                        />
+                        <div className="absolute bottom-0 left-0 h-0.5 bg-security-accent transition-all duration-1000 ease-linear" style={{ width: `${(totpCountdown / 30) * 100}%` }}></div>
+                    </div>
+                    
+                    <div className="flex justify-between text-[10px] font-mono text-security-dim">
+                        <span>GENERATED FROM MASTER KEY</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {totpCountdown}s</span>
+                    </div>
                  </div>
+                 
                  {error && (
                    <div className="p-3 bg-security-alert/10 border border-security-alert/50 flex items-center gap-2 text-security-alert text-xs font-mono">
                       <AlertCircle className="w-4 h-4" />
                       {error}
                    </div>
                  )}
+                 
                  <button 
                    type="submit" 
                    disabled={loading}
