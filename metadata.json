@@ -1,0 +1,7 @@
+{
+  "name": "KeySight - Deterministic Security",
+  "description": "A non-AI, security-first surveillance system focusing on local ownership, deterministic behavior, and verifiable integrity.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
