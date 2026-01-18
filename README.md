@@ -1,7 +1,7 @@
 
 # KeySight Security Platform
 
-![Version](https://img.shields.io/badge/version-1.0.0--RC1-blue)
+![Version](https://img.shields.io/badge/version-1.1.0--BETA-blue)
 ![Security](https://img.shields.io/badge/security-DETERMINISTIC-green)
 ![AI](https://img.shields.io/badge/AI-NONE-red)
 
@@ -12,12 +12,13 @@
 1.  **Local-Only:** No data is ever transmitted to cloud servers. All footage and logs remain in your browser's secure storage.
 2.  **Deterministic:** Motion detection and alerts use strict pixel-difference algorithms, not probabilistic machine learning.
 3.  **Verifiable:** Every action and storage block is cryptographically hashed and chained (Blockchain-lite architecture).
-4.  **Fail-Closed:** Without the Master Access Key, data is mathematically inaccessible.
+4.  **Fail-Closed:** Without the Master Access Key, data is mathematically inaccessible and recording stops immediately.
 
 ## 🚀 Features
 
 ### 📹 Secure Surveillance Dashboard
 *   **Real-time Feeds:** Low-latency video streaming with HUD overlays.
+*   **Audio Surveillance:** Optional, wiretap-compliant audio recording. Requires explicit legal consent and includes visual active-mic indicators.
 *   **Motion Detection:** Configurable pixel-threshold algorithms with visual bounding boxes.
 *   **Privacy Masking:** Client-side blurring of sensitive regions.
 *   **PTZ Control:** Pan-Tilt-Zoom interface for supported hardware.
@@ -28,14 +29,16 @@
 *   **Device Verification:** Challenge-response mechanism to verify ownership of discovered assets before adding them to the dashboard.
 *   **Signal Analysis:** Real-time jitter and latency monitoring.
 
-### 🔐 Encrypted Local Storage
+### 🔐 Encrypted Local Storage & Evidence Vault
 *   **AES-GCM-256:** All video clips, snapshots, and logs are encrypted at rest using a key derived from your Master Password.
+*   **Split-View Vault:** Dedicated "Evidence Vault" column for high-value clips, separate from general looping storage.
+*   **Strict Access Control:** Accessing the storage browser requires Master Key re-authentication.
+*   **Visual Obfuscation:** Locked evidence is **blurred and inaccessible** until explicitly unlocked with the Master Key.
 *   **Immutable Ledger:** Audit logs are stored as a hash chain; any tampering breaks the verification chain.
-*   **Evidence Locking:** Mark specific clips as "Evidence" to prevent deletion (Retention Policy overrides).
 *   **Secure Export:** Generate signed ZIP packages containing footage and a cryptographic manifest.
 
 ### 👮‍♂️ Audit & Compliance
-*   **Immutable Logs:** Every system event (Auth, Motion, Config Change) is logged permanently.
+*   **Immutable Logs:** Every system event (Auth, Motion, Config Change, Audio Toggle) is logged permanently.
 *   **Hardware Binding:** The Master Key is cryptographically bound to the specific browser/device fingerprint.
 *   **Resource Monitor:** Real-time tracking of CPU, RAM, and Storage I/O to ensure system stability.
 
@@ -52,17 +55,17 @@
     *   *Warning:* Save this key securely. There is no password reset mechanism.
 2.  **Bind Device:** Confirm the hardware fingerprint binding.
 3.  **Configure:**
-    *   Go to **Settings** to adjust Motion Sensitivity (Threshold).
-    *   Set Retention Policy (default: 7 days).
+    *   Go to **Settings** to enable Audio (requires legal consent check).
+    *   Adjust Motion Sensitivity and Retention Policy.
 4.  **Add Cameras:**
     *   Manually add RTSP/HTTP streams.
     *   Or use **NET_RECON** to scan your network for devices.
 
 ## ⚠️ Security Notice
 
+*   **Evidence Access:** To view locked evidence, you **MUST** possess the Master Access Key. The system cannot recover blurred footage if the key is lost.
 *   **Ephemeral Nature:** Clearing your browser cache/data **WILL** delete all encrypted footage and logs.
-*   **HTTPS Required:** For full functionality (camera access, crypto), the application must run over HTTPS or localhost.
-*   **CORS:** The Network Scanner relies on browser fetch behavior; some local devices may require CORS configuration to be fully visible.
+*   **HTTPS Required:** For full functionality (camera/microphone access, crypto), the application must run over HTTPS or localhost.
 
 ---
 

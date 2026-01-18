@@ -9,6 +9,16 @@ export interface Camera {
   rtspPath?: string;
   lastMotion: number | null; // Timestamp
   isWebcam?: boolean; // To distinguish the real local camera
+  
+  // New Identity Fields
+  manufacturer?: 'YI_HOME' | 'GENERIC_ONVIF' | 'GENERIC_RTSP' | 'CUSTOM';
+  serialNumber?: string;
+  macAddress?: string; // Simulated or Manual
+  
+  // Security Fields
+  bindingToken?: string; // HMAC of Serial+IP signed by MasterKey
+  fingerprintHash?: string; // SHA-256 of configuration
+  boundAt?: number;
 }
 
 export type UserRole = 'ADMIN' | 'VIEWER' | 'AUDITOR';
@@ -78,6 +88,9 @@ export interface SystemSettings {
   privacyMaskEnabled: boolean;
   motionThreshold: number; // Pixel difference threshold (Lower = More Sensitive)
   
+  // Audio Settings
+  audioRecordingEnabled: boolean;
+
   // Storage Settings
   retentionDays: number;
   maxStorageGB: number;

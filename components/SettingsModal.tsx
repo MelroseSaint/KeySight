@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Camera, SystemSettings } from '../types';
-import { X, Lock, Shield, HardDrive, Eye, Activity, FileText, Trash2, Save, Key, AlertTriangle, CheckCircle, Sliders } from 'lucide-react';
+import { X, Lock, Shield, HardDrive, Eye, Activity, FileText, Trash2, Save, Key, AlertTriangle, CheckCircle, Sliders, Cpu, Hash, Globe, Wifi, ShieldCheck, Mic, MicOff } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -138,7 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             onClick={() => setActiveTab('CAMERAS')}
                             className={`p-3 text-left text-xs font-mono font-bold flex items-center gap-2 border transition-all ${activeTab === 'CAMERAS' ? 'bg-security-accent/10 border-security-accent text-security-accent' : 'border-transparent text-security-dim hover:text-white hover:bg-white/5'}`}
                         >
-                            <Shield className="w-3 h-3" /> DEVICES
+                            <Shield className="w-3 h-3" /> REGISTRY
                         </button>
                         <button 
                             onClick={() => setActiveTab('STORAGE')}
@@ -157,7 +157,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 bg-black overflow-y-auto p-6 relative">
+            <div className="flex-1 bg-black overflow-y-auto p-6 relative custom-scrollbar">
                 
                 {/* Auth Screen Overlay */}
                 {!authorized && (
@@ -281,24 +281,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         </div>
                                     </label>
 
-                                    <div className="space-y-2 pt-2">
-                                        <span className="text-xs font-mono text-security-dim">Motion Sensitivity (Threshold: {localSettings.motionThreshold})</span>
-                                        <div className="flex items-center gap-2">
-                                           <span className="text-[9px] text-security-dim">HIGH</span>
-                                           <input 
-                                              type="range" 
-                                              min="5" 
-                                              max="100" 
-                                              step="5"
-                                              value={localSettings.motionThreshold}
-                                              onChange={e => setLocalSettings(s => ({...s, motionThreshold: parseInt(e.target.value)}))}
-                                              className="flex-1 h-1 bg-security-border rounded-lg appearance-none cursor-pointer accent-security-accent"
-                                              style={{ direction: 'ltr' }} 
-                                           />
-                                           <span className="text-[9px] text-security-dim">LOW</span>
-                                        </div>
-                                    </div>
-
                                     <label className="flex items-center justify-between cursor-pointer group mt-2">
                                         <span className="text-xs font-mono text-security-dim group-hover:text-security-text">WiFi Proximity Alerts</span>
                                         <div 
@@ -308,6 +290,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                             <div className={`w-3 h-3 rounded-full bg-black shadow-sm transition-transform ${localSettings.wifiAlerts ? 'translate-x-4' : 'translate-x-0'}`} />
                                         </div>
                                     </label>
+                                </div>
+                                
+                                <div className="p-4 border border-security-alert/30 bg-security-alert/5 space-y-3">
+                                    <h4 className="text-xs font-mono text-security-alert uppercase mb-2 flex items-center gap-2">
+                                        <Mic className="w-3 h-3" /> Audio Surveillance
+                                    </h4>
+                                    
+                                    <label className="flex items-center justify-between cursor-pointer group">
+                                        <span className="text-xs font-mono text-security-dim group-hover:text-security-text">Record Audio (Wiretap/Surveillance)</span>
+                                        <div 
+                                            onClick={() => {
+                                                if (!localSettings.legalConsentAccepted) {
+                                                    alert("LEGAL ERROR: You must accept compliance terms in the 'COMPLIANCE' tab before enabling audio surveillance.");
+                                                    return;
+                                                }
+                                                setLocalSettings(s => ({...s, audioRecordingEnabled: !s.audioRecordingEnabled}));
+                                            }}
+                                            className={`w-8 h-4 rounded-full p-0.5 transition-colors ${localSettings.audioRecordingEnabled ? 'bg-security-alert' : 'bg-security-border'}`}
+                                        >
+                                            <div className={`w-3 h-3 rounded-full bg-black shadow-sm transition-transform ${localSettings.audioRecordingEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </div>
+                                    </label>
+                                    <p className="text-[9px] font-mono text-security-dim">
+                                        Enabling this captures microphone input alongside video. Verify local wiretapping and consent laws before enabling.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -319,44 +326,91 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="flex items-center justify-between border-b border-security-border pb-2 mb-4">
                             <div className="flex items-center gap-2">
                                 <Shield className="w-4 h-4 text-security-accent" />
-                                <h3 className="text-sm font-mono font-bold text-security-text">CONNECTED DEVICE MANAGER</h3>
+                                <h3 className="text-sm font-mono font-bold text-security-text">DEVICE REGISTRY & HEALTH</h3>
                             </div>
                             <button 
                                 onClick={onAddCameraRequest}
-                                className="px-3 py-1.5 bg-security-accent text-black text-[10px] font-mono font-bold hover:bg-white transition-colors"
+                                className="px-3 py-1.5 bg-security-accent text-black text-[10px] font-mono font-bold hover:bg-white transition-colors flex items-center gap-2"
                             >
-                                + REGISTER NEW DEVICE
+                                <ShieldCheck className="w-3 h-3" /> ONBOARD NEW DEVICE
                             </button>
                         </div>
                         
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {cameras.map(cam => (
-                                <div key={cam.id} className="p-3 bg-security-panel border border-security-border flex items-center justify-between group hover:border-security-dim transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-2 h-2 rounded-full ${cam.status === 'online' ? 'bg-security-accent' : 'bg-security-alert'}`} />
-                                        <div>
-                                            <div className="text-xs font-mono font-bold text-security-text">{cam.name}</div>
-                                            <div className="text-[10px] font-mono text-security-dim">{cam.ip} | {cam.location}</div>
+                                <div key={cam.id} className="p-4 bg-security-panel border border-security-border flex flex-col gap-3 group hover:border-security-accent/30 transition-all">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-3 h-3 rounded-full ${cam.status === 'online' ? 'bg-security-accent shadow-[0_0_8px_rgba(0,255,65,0.4)]' : 'bg-security-alert'}`} />
+                                            <div>
+                                                <div className="text-sm font-mono font-bold text-security-text flex items-center gap-2">
+                                                    {cam.name}
+                                                    {cam.bindingToken && <Lock className="w-3 h-3 text-security-accent" title="Cryptographically Bound" />}
+                                                </div>
+                                                <div className="text-[10px] font-mono text-security-dim flex gap-2">
+                                                    <span>IP: {cam.ip}</span>
+                                                    <span className="text-security-border">|</span>
+                                                    <span>LOC: {cam.location}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            {cam.isWebcam ? (
+                                                <span className="text-[9px] font-mono text-security-dim border border-security-dim px-2 py-0.5 rounded">SYSTEM LOCAL</span>
+                                            ) : (
+                                                <button 
+                                                    onClick={() => onRemoveCamera(cam.id)}
+                                                    className="text-security-dim hover:text-security-alert transition-colors p-1"
+                                                    title="Unbind & Remove"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-[10px] font-mono text-security-dim hidden sm:block">
-                                            ENCRYPTION: AES-256
+                                    
+                                    {/* Expanded Registry Details */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-security-border/30">
+                                        <div className="bg-black/40 p-2 border border-security-border/20">
+                                            <div className="text-[9px] font-mono text-security-dim uppercase mb-1 flex items-center gap-1">
+                                                <Cpu className="w-3 h-3" /> Hardware ID
+                                            </div>
+                                            <div className="text-[10px] font-mono text-security-text truncate" title={cam.serialNumber}>
+                                                {cam.serialNumber || 'UNKNOWN'}
+                                            </div>
                                         </div>
-                                        {cam.isWebcam ? (
-                                            <span className="text-[10px] font-mono text-security-accent border border-security-accent px-2 py-0.5 opacity-50 cursor-not-allowed">SYSTEM DEVICE</span>
-                                        ) : (
-                                            <button 
-                                                onClick={() => onRemoveCamera(cam.id)}
-                                                className="text-security-dim hover:text-security-alert transition-colors"
-                                                title="Remove Device"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        )}
+                                        <div className="bg-black/40 p-2 border border-security-border/20">
+                                            <div className="text-[9px] font-mono text-security-dim uppercase mb-1 flex items-center gap-1">
+                                                <Globe className="w-3 h-3" /> Protocol
+                                            </div>
+                                            <div className="text-[10px] font-mono text-security-text truncate">
+                                                {cam.manufacturer?.replace('_', ' ')} / RTSP:{cam.port}
+                                            </div>
+                                        </div>
+                                        <div className="bg-black/40 p-2 border border-security-border/20">
+                                            <div className="text-[9px] font-mono text-security-dim uppercase mb-1 flex items-center gap-1">
+                                                <Hash className="w-3 h-3" /> Binding Hash
+                                            </div>
+                                            <div className="text-[9px] font-mono text-security-accent truncate" title={cam.bindingToken}>
+                                                {cam.bindingToken ? `${cam.bindingToken.substring(0, 12)}...` : 'UNBOUND'}
+                                            </div>
+                                        </div>
+                                        <div className="bg-black/40 p-2 border border-security-border/20">
+                                            <div className="text-[9px] font-mono text-security-dim uppercase mb-1 flex items-center gap-1">
+                                                <Wifi className="w-3 h-3" /> Connectivity
+                                            </div>
+                                            <div className="text-[10px] font-mono text-security-text truncate">
+                                                {cam.status === 'online' ? 'VERIFIED (LAN)' : 'UNREACHABLE'}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
+                            {cameras.length === 0 && (
+                                <div className="p-8 text-center border-2 border-dashed border-security-border">
+                                    <p className="text-xs font-mono text-security-dim">NO DEVICES REGISTERED IN SECURE STORAGE</p>
+                                </div>
+                            )}
                         </div>
                      </div>
                 )}
@@ -430,7 +484,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <p className="mb-2"><strong className="text-security-text">2. DATA OWNERSHIP:</strong> All footage and logs are encrypted with a key derived from your Master Access Key. KeySight developers cannot recover lost keys or decrypt data.</p>
                             <p className="mb-2"><strong className="text-security-text">3. FAIL-CLOSED ARCHITECTURE:</strong> If system integrity checks fail or the Master Key is not provided, the system will cease all recording and viewing functions immediately to prevent unauthorized access.</p>
                             <p className="mb-2"><strong className="text-security-text">4. NO AI LIABILITY:</strong> This system uses deterministic algorithms for motion and signal detection. It does not use generative AI or probabilistic machine learning models. We are not liable for missed detections.</p>
-                            <p><strong className="text-security-text">5. CONSENT:</strong> By enabling this system, you confirm you have the legal right to monitor the configured areas.</p>
+                            <p className="mb-2"><strong className="text-security-text">5. AUDIO SURVEILLANCE:</strong> Audio recording (wiretapping) is subject to strict laws requiring one-party or all-party consent depending on jurisdiction. By enabling audio, you certify that you have obtained all necessary consents.</p>
+                            <p><strong className="text-security-text">6. CONSENT:</strong> By enabling this system, you confirm you have the legal right to monitor the configured areas.</p>
                         </div>
 
                         <div className="flex items-start gap-3 p-4 bg-security-panel border border-security-border">

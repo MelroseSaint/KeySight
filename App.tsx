@@ -10,6 +10,7 @@ import { AddCameraModal } from './components/AddCameraModal';
 import { SettingsModal } from './components/SettingsModal';
 import { StorageBrowser } from './components/StorageBrowser';
 import { NetworkScanner } from './components/NetworkScanner';
+import { MasterKeyPrompt } from './components/MasterKeyPrompt'; // Import Prompt
 import { AppView, Camera, SecurityEvent, WifiSignal, SystemResources, SystemSettings } from './types';
 import { MOCK_CAMERAS, INITIAL_LOGS, SESSION_TIMEOUT, DEFAULT_SETTINGS } from './constants';
 import { Lock, Download, Wifi, Activity, Plus, Database, Search, Grid, List, MapPin, X, Camera as CameraIcon, Disc, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, RefreshCw, WifiOff } from 'lucide-react';
@@ -24,6 +25,9 @@ const App: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isAddingCamera, setIsAddingCamera] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // Storage Auth State
+  const [isStorageAuthOpen, setIsStorageAuthOpen] = useState(false);
   
   // Dashboard State
   const [searchQuery, setSearchQuery] = useState('');
@@ -196,7 +200,14 @@ const App: React.FC = () => {
     });
   }, [addLog, settings.motionAlerts]);
 
-  const handleExport = async () => {
+  // Intercept Storage Access
+  const handleOpenStorageRequest = () => {
+    setIsStorageAuthOpen(true);
+  };
+
+  const handleStorageAuthSuccess = () => {
+    setIsStorageAuthOpen(false);
+    addLog('AUTH', 'Storage Vault unlocked via Master Key', 'info');
     setView(AppView.STORAGE);
   };
 
@@ -342,12 +353,20 @@ const App: React.FC = () => {
       <Navbar 
         onLogout={() => handleLogout()} 
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenStorage={() => setView(AppView.STORAGE)}
+        onOpenStorage={handleOpenStorageRequest} // Changed to local handler
         onOpenScanner={() => setView(AppView.SCANNER)}
         sessionTime={sessionTime} 
       />
       
       {/* Modals */}
+      <MasterKeyPrompt 
+        isOpen={isStorageAuthOpen}
+        onClose={() => setIsStorageAuthOpen(false)}
+        onSuccess={handleStorageAuthSuccess}
+        title="SECURE VAULT ACCESS"
+        description="Encrypted storage requires Master Access Key for decryption and viewing."
+      />
+
       {isAddingCamera && (
         <AddCameraModal onClose={() => setIsAddingCamera(false)} onAdd={handleAddCamera} />
       )}
@@ -483,13 +502,7 @@ const App: React.FC = () => {
                     >
                     <Plus className="w-3 h-3" /> ADD CAMERA
                     </button>
-                    <button 
-                    onClick={handleExport}
-                    className="flex-1 sm:flex-none bg-security-border hover:bg-white/10 text-security-text border border-security-text/20 px-4 py-3 sm:py-2 text-xs font-mono flex items-center justify-center gap-2 transition-colors touch-manipulation"
-                    >
-                    <Download className="w-3 h-3" />
-                    EXPORT
-                    </button>
+                    {/* Export button removed from here as it's less critical and available in storage view */}
                 </div>
               </div>
 

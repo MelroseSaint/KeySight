@@ -27,6 +27,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   overlayOpacity: 0.8,
   privacyMaskEnabled: false,
   motionThreshold: 30,
+  audioRecordingEnabled: false,
   retentionDays: 7,
   maxStorageGB: 50,
   encryptionEnabled: true,

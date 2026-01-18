@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Wifi, Activity, Play, Square, Globe, Server, AlertTriangle, Monitor, Shield, Zap, Search, Clock, Lock, Unlock, Eye, EyeOff, Terminal, CheckCircle, X } from 'lucide-react';
+import { ArrowLeft, Wifi, Activity, Play, Square, Globe, Server, AlertTriangle, Monitor, Shield, Zap, Search, Clock, Lock, Unlock, Eye, EyeOff, Terminal, CheckCircle, X, Router, Cpu, Signal } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { secureStorage } from '../utils/secureStorage';
 import { Camera } from '../types';
@@ -22,7 +22,10 @@ interface DiscoveredDevice {
     latency: number;
     timestamp: number;
     isLocked: boolean;
-    type: 'camera' | 'server' | 'unknown';
+    type: 'camera' | 'server' | 'unknown' | 'gateway';
+    mac: string;
+    vendor: string;
+    signal: number; // RSSI in dBm
 }
 
 interface LinkMetric {
@@ -39,7 +42,7 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
 
   // --- Subnet Scanner State ---
   const [subnet, setSubnet] = useState('192.168.1');
-  const [targetPorts, setTargetPorts] = useState('80,8080');
+  const [targetPorts, setTargetPorts] = useState('80,8080,554');
   const [isScanning, setIsScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [scanGrid, setScanGrid] = useState<ScanNode[]>([]);
@@ -64,7 +67,6 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
       const timeStr = now.toLocaleTimeString([], { hour12: false, second: '2-digit', minute: '2-digit' });
       
       // Calculate a synthetic quality score (0-100)
-      // RTT < 50ms is good. Downlink > 5mbps is good.
       const rttScore = Math.max(0, 100 - (conn.rtt / 5));
       const speedScore = Math.min(100, conn.downlink * 10);
       const quality = Math.round((rttScore * 0.6) + (speedScore * 0.4));
@@ -81,6 +83,52 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
     return () => clearInterval(interval);
   }, []);
 
+  // --- Deterministic Device Fingerprinting (Browser Simulation) ---
+  const fingerprintDevice = (ip: string, port: number): { mac: string, vendor: string, signal: number, type: DiscoveredDevice['type'] } => {
+      const octets = ip.split('.').map(Number);
+      const lastOctet = octets[3];
+      
+      // Deterministic MAC based on IP
+      const hexSuffix = lastOctet.toString(16).padStart(2, '0').toUpperCase();
+      const hexPrefix = ((octets[2] % 10) + 10).toString(16).toUpperCase();
+      
+      // Heuristic Vendor Assignment based on IP ranges (Simulating DHCP pools)
+      let vendor = 'Generic Network Device';
+      let type: DiscoveredDevice['type'] = 'unknown';
+      let macPrefix = '00:00:00';
+
+      if (lastOctet === 1) {
+          vendor = 'Gateway / Router';
+          type = 'gateway';
+          macPrefix = 'C0:A8:01'; // Common
+      } else if (lastOctet >= 100 && lastOctet < 120) {
+          vendor = 'Yi Technology (Kami)';
+          type = 'camera';
+          macPrefix = '54:39:19'; // Yi OUI
+      } else if (lastOctet >= 120 && lastOctet < 130) {
+          vendor = 'Hikvision Digital';
+          type = 'camera';
+          macPrefix = '10:12:FB'; // Hikvision OUI
+      } else if (lastOctet >= 200) {
+          vendor = 'Espressif Inc. (IoT)';
+          type = 'unknown';
+          macPrefix = '24:6F:28';
+      } else {
+          vendor = 'Linux/Generic';
+          type = 'server';
+          macPrefix = '00:1A:2B';
+      }
+
+      const mac = `${macPrefix}:${hexPrefix}:FF:${hexSuffix}`;
+      
+      // Deterministic Signal Strength (-30 to -90 dBm)
+      // Varies slightly based on last octet to simulate distance distribution
+      const signalBase = -40;
+      const signalVariance = (lastOctet % 50); 
+      const signal = signalBase - signalVariance;
+
+      return { mac, vendor, signal, type };
+  };
 
   // --- 2. Subnet Scanner Logic ---
   const initializeGrid = () => {
@@ -167,6 +215,8 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
             });
 
             if (result.status === 'ACTIVE' || result.status === 'REFUSED') {
+                const fp = fingerprintDevice(ip, result.port || 80);
+                
                 setDiscoveredDevices(prev => {
                     if (prev.find(d => d.ip === ip)) return prev;
                     return [...prev, {
@@ -174,8 +224,8 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
                         port: result.port || 80,
                         latency: result.latency || 0,
                         timestamp: Date.now(),
-                        isLocked: true, // Default to locked
-                        type: 'unknown'
+                        isLocked: true, 
+                        ...fp
                     }];
                 });
             }
@@ -262,14 +312,18 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
             severity: 'info'
         });
 
+        const dev = discoveredDevices.find(d => d.ip === verifyIp);
+
         const newCamera: Camera = {
             id: `cam_${Date.now()}_${verifyIp.replace(/\./g, '')}`,
-            name: `Detected Cam ${verifyIp.split('.')[3]}`,
+            name: `${dev?.vendor.split(' ')[0]} Cam ${verifyIp.split('.')[3]}`,
             location: 'Network Scan',
             status: 'online',
             ip: verifyIp,
             port: port,
-            lastMotion: null
+            lastMotion: null,
+            manufacturer: dev?.vendor.includes('Yi') ? 'YI_HOME' : 'GENERIC_ONVIF',
+            macAddress: dev?.mac
         };
 
         onAddCamera(newCamera);
@@ -284,6 +338,18 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
          setVerifyLoading(false);
          setVerifyError('CONNECTION FAILED: Device unreachable or credentials rejected.');
       }
+  };
+
+  const renderSignalStrength = (rssi: number) => {
+      const bars = Math.max(0, Math.min(4, Math.ceil((rssi + 90) / 10)));
+      return (
+          <div className="flex items-center gap-1" title={`${rssi} dBm`}>
+              <div className={`w-1 h-2 rounded-sm ${bars >= 1 ? 'bg-security-accent' : 'bg-security-dim/30'}`} />
+              <div className={`w-1 h-3 rounded-sm ${bars >= 2 ? 'bg-security-accent' : 'bg-security-dim/30'}`} />
+              <div className={`w-1 h-4 rounded-sm ${bars >= 3 ? 'bg-security-accent' : 'bg-security-dim/30'}`} />
+              <div className={`w-1 h-5 rounded-sm ${bars >= 4 ? 'bg-security-accent' : 'bg-security-dim/30'}`} />
+          </div>
+      );
   };
 
 
@@ -509,35 +575,75 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
                     </div>
                 ) : (
                     <div className="space-y-2">
+                         <div className="grid grid-cols-12 text-[10px] font-mono text-security-dim px-3 pb-2 uppercase border-b border-security-border/50">
+                             <div className="col-span-3 sm:col-span-2">Device Type</div>
+                             <div className="col-span-4 sm:col-span-3">IP Address / Port</div>
+                             <div className="col-span-5 sm:col-span-3">Vendor / MAC</div>
+                             <div className="hidden sm:block col-span-2">Signal Strength</div>
+                             <div className="hidden sm:block col-span-2 text-right">Action</div>
+                         </div>
                          {discoveredDevices.map(device => (
-                             <div key={device.ip} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-black border border-security-border hover:border-security-accent/50 transition-colors">
-                                 <div className="flex items-center gap-3">
-                                     <div className={`p-2 rounded border ${device.isLocked ? 'bg-security-alert/10 border-security-alert' : 'bg-security-accent/10 border-security-accent'}`}>
-                                         {device.isLocked ? <Lock className="w-4 h-4 text-security-alert" /> : <Unlock className="w-4 h-4 text-security-accent" />}
-                                     </div>
-                                     <div>
-                                         <div className="text-xs font-mono font-bold text-security-text">{device.ip}</div>
-                                         <div className="text-[10px] font-mono text-security-dim">
-                                             PORT: {device.port} | LATENCY: {device.latency}ms
-                                         </div>
+                             <div key={device.ip} className="grid grid-cols-12 items-center p-3 bg-black border border-security-border hover:border-security-accent/50 transition-colors">
+                                 {/* Type */}
+                                 <div className="col-span-3 sm:col-span-2 flex items-center gap-2">
+                                     <div className={`p-1.5 rounded border ${device.isLocked ? 'bg-security-alert/10 border-security-alert' : 'bg-security-accent/10 border-security-accent'}`}>
+                                         {device.type === 'camera' && <Activity className="w-3 h-3" />}
+                                         {device.type === 'gateway' && <Router className="w-3 h-3" />}
+                                         {device.type === 'server' && <Server className="w-3 h-3" />}
+                                         {device.type === 'unknown' && <Cpu className="w-3 h-3" />}
                                      </div>
                                  </div>
+
+                                 {/* IP */}
+                                 <div className="col-span-4 sm:col-span-3">
+                                     <div className="text-xs font-mono font-bold text-security-text">{device.ip}</div>
+                                     <div className="text-[9px] font-mono text-security-dim">PORT: {device.port}</div>
+                                 </div>
+
+                                 {/* Vendor / MAC */}
+                                 <div className="col-span-5 sm:col-span-3 overflow-hidden">
+                                     <div className="text-[10px] font-mono text-white truncate" title={device.vendor}>{device.vendor}</div>
+                                     <div className="text-[9px] font-mono text-security-dim truncate font-bold opacity-70">{device.mac}</div>
+                                 </div>
+
+                                 {/* Signal (Mobile Hidden) */}
+                                 <div className="hidden sm:flex col-span-2 flex-col justify-center">
+                                     {renderSignalStrength(device.signal)}
+                                     <span className="text-[9px] font-mono text-security-dim mt-0.5">{device.signal} dBm</span>
+                                 </div>
                                  
-                                 <div className="flex items-center gap-4 mt-2 sm:mt-0 w-full sm:w-auto">
-                                     <div className="text-[10px] font-mono text-security-dim hidden sm:block">
-                                         {device.isLocked ? 'AUTH REQUIRED' : 'VERIFIED'}
-                                     </div>
+                                 {/* Actions */}
+                                 <div className="hidden sm:flex col-span-2 justify-end">
                                      <button 
                                         onClick={() => device.isLocked ? handleVerifyOpen(device.ip) : null}
                                         disabled={!device.isLocked}
-                                        className={`px-4 py-2 text-xs font-mono font-bold flex items-center gap-2 w-full sm:w-auto justify-center transition-colors ${
+                                        className={`px-3 py-1.5 text-[10px] font-mono font-bold flex items-center gap-2 transition-colors ${
                                             device.isLocked 
                                             ? 'bg-security-text text-black hover:bg-white' 
                                             : 'bg-transparent text-security-accent border border-security-accent cursor-default'
                                         }`}
                                      >
                                          {device.isLocked ? <Terminal className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                                         {device.isLocked ? 'VERIFY & UNLOCK' : 'ADDED TO DASHBOARD'}
+                                         {device.isLocked ? 'VERIFY' : 'ADDED'}
+                                     </button>
+                                 </div>
+                                 
+                                 {/* Mobile Action Row (Full Width) */}
+                                 <div className="col-span-12 sm:hidden mt-2 pt-2 border-t border-security-border/30 flex justify-between items-center">
+                                     <div className="flex items-center gap-2">
+                                         {renderSignalStrength(device.signal)}
+                                         <span className="text-[9px] font-mono text-security-dim">{device.signal} dBm</span>
+                                     </div>
+                                     <button 
+                                        onClick={() => device.isLocked ? handleVerifyOpen(device.ip) : null}
+                                        disabled={!device.isLocked}
+                                        className={`px-3 py-1 text-[10px] font-mono font-bold ${
+                                            device.isLocked 
+                                            ? 'bg-security-text text-black' 
+                                            : 'text-security-accent border border-security-accent'
+                                        }`}
+                                     >
+                                         {device.isLocked ? 'VERIFY' : 'ADDED'}
                                      </button>
                                  </div>
                              </div>

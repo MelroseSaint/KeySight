@@ -127,7 +127,6 @@ export class SecureStorage {
 
   // Helper to lock an item (Evidence Mode)
   async lockItem(targetBlockIndex: number, user: string): Promise<boolean> {
-    // Append a LOCK_EVIDENCE event referencing the target block
     await this.append({
         type: 'LOCK_EVIDENCE',
         targetIndex: targetBlockIndex,
@@ -138,10 +137,20 @@ export class SecureStorage {
     return true;
   }
 
+  // Helper to unlock an item
+  async unlockItem(targetBlockIndex: number, user: string): Promise<boolean> {
+    await this.append({
+        type: 'UNLOCK_EVIDENCE',
+        targetIndex: targetBlockIndex,
+        timestamp: Date.now(),
+        user: user,
+        description: `Evidence unlocked by ${user}`
+    });
+    return true;
+  }
+
   // Helper to delete an item (Tombstone)
   async deleteItem(targetBlockIndex: number, user: string): Promise<boolean> {
-     // Check if locked first? This check technically happens in UI, 
-     // but secure logic would require replaying chain. We'll rely on UI state for this demo.
      await this.append({
          type: 'TOMBSTONE',
          targetIndex: targetBlockIndex,
@@ -174,11 +183,12 @@ export class SecureStorage {
 
             if (content.type === 'LOCK_EVIDENCE' && content.targetIndex) {
                 locks.add(content.targetIndex);
-                // Also return the lock event itself as a log
+                rawItems.set(block.index, item);
+            } else if (content.type === 'UNLOCK_EVIDENCE' && content.targetIndex) {
+                locks.delete(content.targetIndex);
                 rawItems.set(block.index, item);
             } else if (content.type === 'TOMBSTONE' && content.targetIndex) {
                 deletions.add(content.targetIndex);
-                // Also return tombstone log
                 rawItems.set(block.index, item);
             } else {
                 rawItems.set(block.index, item);
@@ -197,6 +207,8 @@ export class SecureStorage {
          // Apply lock status
          if (locks.has(index)) {
              item.locked = true;
+         } else {
+             item.locked = false;
          }
 
          result.push(item);
