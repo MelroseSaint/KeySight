@@ -302,13 +302,9 @@ export const StorageBrowser: React.FC<StorageBrowserProps> = ({ onBack }) => {
       setShowShareModal(true);
   };
 
-  const executeDownloadHtml = async () => {
-      setIsProcessing(true);
-      setProcessingStatus('GENERATING SECURE HTML PACKAGE...');
-      await new Promise(r => setTimeout(r, 500));
-
-      const selected = items.filter(i => selectedIds.has(i._blockIndex));
-      const htmlContent = `<!DOCTYPE html>
+  // Reusable HTML Generator for both Download and Link
+  const generateHtmlExportString = (selectedItems: StorageItem[]) => {
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -335,11 +331,11 @@ export const StorageBrowser: React.FC<StorageBrowserProps> = ({ onBack }) => {
         </div>
         <div class="meta">
             GENERATED: ${new Date().toISOString()}<br/>
-            ITEMS: ${selected.length}
+            ITEMS: ${selectedItems.length}
         </div>
     </div>
 
-    ${selected.map(item => `
+    ${selectedItems.map(item => `
         <div class="item">
             <div class="item-header">
                 <span>TYPE: ${item.type}</span>
@@ -363,6 +359,15 @@ export const StorageBrowser: React.FC<StorageBrowserProps> = ({ onBack }) => {
     </div>
 </body>
 </html>`;
+  };
+
+  const executeDownloadHtml = async () => {
+      setIsProcessing(true);
+      setProcessingStatus('GENERATING SECURE HTML PACKAGE...');
+      await new Promise(r => setTimeout(r, 500));
+
+      const selected = items.filter(i => selectedIds.has(i._blockIndex));
+      const htmlContent = generateHtmlExportString(selected);
 
       const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
@@ -480,16 +485,15 @@ export const StorageBrowser: React.FC<StorageBrowserProps> = ({ onBack }) => {
 
   const executeGenerateLink = async () => {
       setIsProcessing(true);
-      setProcessingStatus('GENERATING BLOB LINK...');
+      setProcessingStatus('GENERATING PLAYABLE LINK...');
       await new Promise(r => setTimeout(r, 500));
       
       const selected = items.filter(i => selectedIds.has(i._blockIndex));
-      const json = JSON.stringify({
-          exportedAt: Date.now(),
-          items: selected
-      }, null, 2);
       
-      const blob = new Blob([json], { type: 'application/json' });
+      // Use HTML format for playable links
+      const htmlContent = generateHtmlExportString(selected);
+      
+      const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       setShareUrl(url);
       
@@ -578,7 +582,7 @@ export const StorageBrowser: React.FC<StorageBrowserProps> = ({ onBack }) => {
                                     </div>
                                     <div className="text-left">
                                         <div className="text-xs font-mono font-bold text-security-text group-hover:text-security-accent">GENERATE SHARE LINK</div>
-                                        <div className="text-[9px] font-mono text-security-dim">Create temporary Blob URL for local sharing</div>
+                                        <div className="text-[9px] font-mono text-security-dim">Create temporary link to view/play evidence in browser</div>
                                     </div>
                                 </div>
                                 <ArrowLeft className="w-4 h-4 rotate-180 text-security-dim group-hover:text-security-accent" />
@@ -619,7 +623,7 @@ export const StorageBrowser: React.FC<StorageBrowserProps> = ({ onBack }) => {
                                     rel="noreferrer"
                                     className="flex-1 py-2 bg-security-accent text-black text-xs font-mono font-bold flex items-center justify-center gap-2 hover:bg-white transition-colors"
                                 >
-                                    <ExternalLink className="w-3 h-3" /> OPEN LINK
+                                    <ExternalLink className="w-3 h-3" /> OPEN IN BROWSER
                                 </a>
                                 <button 
                                     onClick={() => setShareUrl('')}

@@ -1,7 +1,7 @@
 
 # KeySight Security Platform
 
-![Version](https://img.shields.io/badge/version-1.2.0--BETA-blue)
+![Version](https://img.shields.io/badge/version-1.3.0--HARDENED-blue)
 ![Security](https://img.shields.io/badge/security-DETERMINISTIC-green)
 ![AI](https://img.shields.io/badge/AI-NONE-red)
 
@@ -12,9 +12,16 @@
 1.  **Local-Only:** No data is ever transmitted to cloud servers. All footage and logs remain in your browser's secure storage.
 2.  **Deterministic:** Motion detection and alerts use strict pixel-difference algorithms, not probabilistic machine learning.
 3.  **Verifiable:** Every action and storage block is cryptographically hashed and chained (Blockchain-lite architecture).
-4.  **Fail-Closed:** Without the Master Access Key, data is mathematically inaccessible and recording stops immediately.
+4.  **Fail-Closed:** Any security validation failure (input, auth, integrity) blocks execution immediately.
 
 ## 🚀 Features
+
+### 🛡️ Universal Injection Defense (New)
+*   **Zero-Trust Input Model:** Every external input (User, Network, IPC) is treated as hostile until validated against strict schemas.
+*   **Attack Vector Detection:** Deterministic scanning for SQL Injection, Command Injection, XSS, Path Traversal, and Protocol Smuggling patterns.
+*   **Input Canonicalization:** Automatic normalization of Unicode and control characters to prevent encoding bypass attacks.
+*   **Context-Aware Sanitization:** strict allowlists for IPs, Ports, Filenames, and Credentials.
+*   **Security Audit Logging:** All blocked injection attempts are logged to the immutable ledger with critical severity.
 
 ### 📹 Secure Surveillance Dashboard
 *   **Real-time Feeds:** Low-latency video streaming with HUD overlays.
@@ -30,6 +37,7 @@
 *   **Port Probing:** Detects open HTTP/HTTPS ports using opaque fetch requests.
 *   **Device Verification:** Challenge-response mechanism to verify ownership of discovered assets before adding them to the dashboard.
 *   **Signal Analysis:** Real-time jitter and latency monitoring.
+*   **SSRF Protection:** Strict validation of target IPs to prevent internal network scanning abuse.
 
 ### 🔐 Encrypted Local Storage & Evidence Vault
 *   **AES-GCM-256:** All video clips, snapshots, and logs are encrypted at rest using a key derived from your Master Password.
@@ -41,7 +49,7 @@
 *   **Smart ZIP Export:** Generate signed ZIP packages containing footage (MP4/WebM/JPG) and a cryptographic manifest.
 
 ### 👮‍♂️ Audit & Compliance
-*   **Immutable Logs:** Every system event (Auth, Motion, Config Change, Audio Toggle) is logged permanently.
+*   **Immutable Logs:** Every system event (Auth, Motion, Config Change, Audio Toggle, Security Violation) is logged permanently.
 *   **Hardware Binding:** The Master Key is cryptographically bound to the specific browser/device fingerprint.
 *   **Resource Monitor:** Real-time tracking of CPU, RAM, and Storage I/O to ensure system stability.
 
@@ -49,6 +57,7 @@
 
 *   **Frontend:** React 18, TypeScript, Tailwind CSS
 *   **Cryptography:** Web Crypto API (SubtleCrypto) for SHA-256 hashing and AES-GCM encryption.
+*   **Input Security:** Custom `InputValidator` with ReDoS-safe regex patterns.
 *   **Visualization:** Recharts for signal data, Canvas API for motion processing.
 *   **Storage:** Custom `SecureStorage` wrapper around IndexedDB/LocalStorage.
 *   **Compression:** JSZip for client-side archive generation.

@@ -4,6 +4,7 @@ import { ArrowLeft, Wifi, Activity, Play, Square, Globe, Server, AlertTriangle, 
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import { secureStorage } from '../utils/secureStorage';
 import { Camera } from '../types';
+import { inputValidator, SecurityException } from '../utils/inputSecurity';
 
 interface NetworkScannerProps {
   onBack: () => void;
@@ -56,6 +57,7 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
   const [showPass, setShowPass] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState('');
+  const [scanError, setScanError] = useState<string | null>(null);
 
   // --- 1. Real-time Link Monitoring ---
   useEffect(() => {
@@ -169,82 +171,112 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
 
   const startScan = async () => {
     if (isScanning) return;
+    setScanError(null);
     
-    setIsScanning(true);
-    setProgress(0);
-    initializeGrid();
-    
-    abortControllerRef.current = new AbortController();
-    const ports = targetPorts.split(',').map(p => parseInt(p.trim())).filter(n => !isNaN(n));
-    
-    // Log Start
-    await secureStorage.append({
-        type: 'SCAN_NETWORK',
-        description: `Subnet Scan Started: ${subnet}.x`,
-        metadata: { ports: targetPorts }
-    });
+    try {
+        // --- INPUT SECURITY VALIDATION ---
+        // Validate Subnet format (Partial IP)
+        // We construct a fake full IP to validate the first 3 octets using the strict IP validator
+        const testIp = `${subnet}.1`;
+        inputValidator.validate(testIp, 'IP', 'Subnet Prefix');
+        
+        // RFC1918 Check
+        const parts = testIp.split('.').map(Number);
+        const isPrivate = 
+            (parts[0] === 10) || // 10.0.0.0/8
+            (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // 172.16.0.0/12
+            (parts[0] === 192 && parts[1] === 168); // 192.168.0.0/16
+        
+        if (!isPrivate) {
+            throw new SecurityException("Security Policy: Scanning permitted on RFC1918 Private Networks only.");
+        }
 
-    const batchSize = 10; // Browser limit for concurrent connections is usually 6
-    const nodes = Array.from({length: 254}, (_, i) => i + 1);
-    
-    for (let i = 0; i < nodes.length; i += batchSize) {
-        if (abortControllerRef.current.signal.aborted) break;
+        // Validate Ports
+        const portList = targetPorts.split(',');
+        const cleanPorts: number[] = [];
+        for (const p of portList) {
+            const cleanP = inputValidator.validate(p.trim(), 'PORT', 'Target Port');
+            cleanPorts.push(parseInt(cleanP));
+        }
 
-        const batch = nodes.slice(i, i + batchSize);
-        const promises = batch.map(async (nodeIndex) => {
-            const ip = `${subnet}.${nodeIndex}`;
-            
-            // Per-request timeout controller
-            const timeoutCtrl = new AbortController();
-            const compositeSignal = anySignal([abortControllerRef.current!.signal, timeoutCtrl.signal]);
-            const timeoutId = setTimeout(() => timeoutCtrl.abort(), 1500); // 1.5s timeout per host
-
-            const result = await checkHost(ip, ports, compositeSignal);
-            
-            clearTimeout(timeoutId);
-
-            // Update Grid & Discovered List
-            setScanGrid(prev => {
-                const newGrid = [...prev];
-                const target = newGrid.find(n => n.ip === ip);
-                if (target) {
-                    target.status = result.status as any;
-                    target.latency = result.latency;
-                }
-                return newGrid;
-            });
-
-            if (result.status === 'ACTIVE' || result.status === 'REFUSED') {
-                const fp = fingerprintDevice(ip, result.port || 80);
-                
-                setDiscoveredDevices(prev => {
-                    if (prev.find(d => d.ip === ip)) return prev;
-                    return [...prev, {
-                        ip,
-                        port: result.port || 80,
-                        latency: result.latency || 0,
-                        timestamp: Date.now(),
-                        isLocked: true, 
-                        ...fp
-                    }];
-                });
-            }
+        setIsScanning(true);
+        setProgress(0);
+        initializeGrid();
+        
+        abortControllerRef.current = new AbortController();
+        
+        // Log Start
+        await secureStorage.append({
+            type: 'SCAN_NETWORK',
+            description: `Subnet Scan Started: ${subnet}.x`,
+            metadata: { ports: targetPorts }
         });
 
-        await Promise.all(promises);
-        setProgress(Math.round(((i + batchSize) / 254) * 100));
-    }
+        const batchSize = 10; // Browser limit for concurrent connections is usually 6
+        const nodes = Array.from({length: 254}, (_, i) => i + 1);
+        
+        for (let i = 0; i < nodes.length; i += batchSize) {
+            if (abortControllerRef.current.signal.aborted) break;
 
-    setIsScanning(false);
-    setProgress(100);
-    
-    // Log End
-    const activeHosts = scanGrid.filter(n => n.status === 'ACTIVE' || n.status === 'REFUSED').length;
-    await secureStorage.append({
-        type: 'SCAN_NETWORK',
-        description: `Subnet Scan Complete. Found ${activeHosts} potential hosts.`,
-        severity: activeHosts > 0 ? 'warning' : 'info'
-    });
+            const batch = nodes.slice(i, i + batchSize);
+            const promises = batch.map(async (nodeIndex) => {
+                const ip = `${subnet}.${nodeIndex}`;
+                
+                // Per-request timeout controller
+                const timeoutCtrl = new AbortController();
+                const compositeSignal = anySignal([abortControllerRef.current!.signal, timeoutCtrl.signal]);
+                const timeoutId = setTimeout(() => timeoutCtrl.abort(), 1500); // 1.5s timeout per host
+
+                const result = await checkHost(ip, cleanPorts, compositeSignal);
+                
+                clearTimeout(timeoutId);
+
+                // Update Grid & Discovered List
+                setScanGrid(prev => {
+                    const newGrid = [...prev];
+                    const target = newGrid.find(n => n.ip === ip);
+                    if (target) {
+                        target.status = result.status as any;
+                        target.latency = result.latency;
+                    }
+                    return newGrid;
+                });
+
+                if (result.status === 'ACTIVE' || result.status === 'REFUSED') {
+                    const fp = fingerprintDevice(ip, result.port || 80);
+                    
+                    setDiscoveredDevices(prev => {
+                        if (prev.find(d => d.ip === ip)) return prev;
+                        return [...prev, {
+                            ip,
+                            port: result.port || 80,
+                            latency: result.latency || 0,
+                            timestamp: Date.now(),
+                            isLocked: true, 
+                            ...fp
+                        }];
+                    });
+                }
+            });
+
+            await Promise.all(promises);
+            setProgress(Math.round(((i + batchSize) / 254) * 100));
+        }
+
+        setIsScanning(false);
+        setProgress(100);
+        
+        // Log End
+        const activeHosts = scanGrid.filter(n => n.status === 'ACTIVE' || n.status === 'REFUSED').length;
+        await secureStorage.append({
+            type: 'SCAN_NETWORK',
+            description: `Subnet Scan Complete. Found ${activeHosts} potential hosts.`,
+            severity: activeHosts > 0 ? 'warning' : 'info'
+        });
+    } catch (e: any) {
+        setScanError(e.message);
+        setIsScanning(false);
+    }
   };
 
   const stopScan = () => {
@@ -286,8 +318,11 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
 
       if (!verifyIp) return;
 
-      // Simulate Real verification using Fetch
       try {
+        // Input Security: Credentials Check
+        if (verifyUser) inputValidator.validate(verifyUser, 'SAFE_TEXT', 'Username');
+        if (verifyPass) inputValidator.validate(verifyPass, 'PASSWORD', 'Password');
+
         const protocol = 'http'; // Default
         const port = discoveredDevices.find(d => d.ip === verifyIp)?.port || 80;
         const targetUrl = `${protocol}://${verifyIp}:${port}`;
@@ -336,7 +371,7 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
 
       } catch (err: any) {
          setVerifyLoading(false);
-         setVerifyError('CONNECTION FAILED: Device unreachable or credentials rejected.');
+         setVerifyError(err.message || 'CONNECTION FAILED: Device unreachable or credentials rejected.');
       }
   };
 
@@ -493,7 +528,10 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
                                     <label className="text-[9px] font-mono text-security-dim uppercase block">Subnet Prefix</label>
                                     <input 
                                         value={subnet}
-                                        onChange={e => setSubnet(e.target.value)}
+                                        onChange={e => {
+                                            setSubnet(e.target.value);
+                                            setScanError(null);
+                                        }}
                                         className="bg-black border border-security-border p-2 text-xs font-mono w-full sm:w-32 focus:border-security-accent outline-none"
                                         placeholder="192.168.1"
                                     />
@@ -526,6 +564,12 @@ export const NetworkScanner: React.FC<NetworkScannerProps> = ({ onBack, onAddCam
                             )}
                         </div>
                     </div>
+                    
+                    {scanError && (
+                        <div className="mb-4 p-2 bg-security-alert/10 border border-security-alert/30 text-security-alert text-[10px] font-mono flex items-center gap-2">
+                             <AlertTriangle className="w-3 h-3" /> {scanError}
+                        </div>
+                    )}
 
                     {/* Legend */}
                     <div className="flex gap-4 mb-2 text-[10px] font-mono border-b border-security-border/30 pb-2">

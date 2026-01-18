@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Camera } from '../types';
 import { X, Server, CheckCircle, AlertTriangle, ShieldCheck, Eye, EyeOff, Activity, Lock, Terminal, Zap, QrCode, Scan, Smartphone, Cpu, Globe, Search } from 'lucide-react';
 import { secureStorage } from '../utils/secureStorage';
+import { inputValidator, SecurityException } from '../utils/inputSecurity';
 
 interface AddCameraModalProps {
   onClose: () => void;
@@ -87,12 +88,13 @@ export const AddCameraModal: React.FC<AddCameraModalProps> = ({ onClose, onAdd }
 
   const handleQrDetected = (data: string) => {
       addLog(`[QR] Code Detected: ${data}`);
-      // Basic parsing logic
-      if (data.includes('-')) {
-          setFormData(prev => ({ ...prev, serial: data }));
+      try {
+          // Validate immediately upon scan
+          const validSerial = inputValidator.validate(data, 'SERIAL', 'QR Code Data');
+          setFormData(prev => ({ ...prev, serial: validSerial }));
           setMode('MANUAL_SERIAL'); // Switch to confirmation view
-      } else {
-          setError("Invalid QR Format. Expected Serial Number.");
+      } catch (e) {
+          setError("Invalid QR Format. Potential Injection Detected.");
       }
       setIsScanning(false);
   };
@@ -122,32 +124,33 @@ export const AddCameraModal: React.FC<AddCameraModalProps> = ({ onClose, onAdd }
   };
 
   const validateInputs = () => {
-    // 1. Validate Strings (Alphanumeric, ., -, _)
-    const safeTextRegex = /^[a-zA-Z0-9._-]+$/;
-    if (formData.name && !safeTextRegex.test(formData.name)) {
-        throw new Error("Invalid Device Name. Allowed characters: A-Z, 0-9, . - _");
-    }
-    if (formData.location && !safeTextRegex.test(formData.location)) {
-        throw new Error("Invalid Location. Allowed characters: A-Z, 0-9, . - _");
-    }
+      // Input Security Layer Validation
+      // This will throw SecurityException if any pattern matches an attack vector or schema mismatch
+      
+      const validatedName = inputValidator.validate(formData.name, 'SAFE_TEXT', 'Device Name');
+      const validatedLocation = inputValidator.validate(formData.location, 'SAFE_TEXT', 'Location');
+      const validatedIP = inputValidator.validate(formData.ip, 'IP', 'IP Address');
+      const validatedPort = inputValidator.validate(formData.port, 'PORT', 'Port');
+      
+      // Update state with canonicalized values
+      setFormData(prev => ({
+          ...prev,
+          name: validatedName,
+          location: validatedLocation,
+          ip: validatedIP,
+          port: validatedPort
+      }));
 
-    // 2. Validate IP Format
-    if (!formData.ip) throw new Error("IP Address is required.");
-    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    if (!ipv4Regex.test(formData.ip)) {
-        throw new Error("Invalid IPv4 Address format.");
-    }
-
-    // 3. RFC1918 Private Network Check
-    const parts = formData.ip.split('.').map(Number);
-    const isPrivate = 
-        (parts[0] === 10) || // 10.0.0.0/8
-        (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // 172.16.0.0/12
-        (parts[0] === 192 && parts[1] === 168); // 192.168.0.0/16
-    
-    if (!isPrivate) {
-        throw new Error("Security Policy Violation: Only RFC1918 Private Networks allowed (10.x, 172.16-31.x, 192.168.x).");
-    }
+      // RFC1918 Private Network Check
+      const parts = validatedIP.split('.').map(Number);
+      const isPrivate = 
+          (parts[0] === 10) || // 10.0.0.0/8
+          (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // 172.16.0.0/12
+          (parts[0] === 192 && parts[1] === 168); // 192.168.0.0/16
+      
+      if (!isPrivate) {
+          throw new SecurityException("Security Policy Violation: Only RFC1918 Private Networks allowed (10.x, 172.16-31.x, 192.168.x).");
+      }
   };
 
   const handleDiscovery = async () => {
@@ -161,11 +164,12 @@ export const AddCameraModal: React.FC<AddCameraModalProps> = ({ onClose, onAdd }
 
           // 1. Validate Serial Logic
           if (mode === 'MANUAL_SERIAL' || mode === 'QR_SCAN') {
-              if (formData.serial.length < 5) throw new Error("Invalid Serial Number length");
-              const { mfg, derivedPath, derivedPort } = deriveConfigFromSerial(formData.serial);
+              const validSerial = inputValidator.validate(formData.serial, 'SERIAL', 'Serial Number');
+              const { mfg, derivedPath, derivedPort } = deriveConfigFromSerial(validSerial);
               
               setFormData(prev => ({
                   ...prev,
+                  serial: validSerial,
                   manufacturer: mfg as any,
                   rtspPath: prev.rtspPath || derivedPath,
                   port: prev.port !== '554' ? prev.port : derivedPort
@@ -230,6 +234,15 @@ export const AddCameraModal: React.FC<AddCameraModalProps> = ({ onClose, onAdd }
 
   const handleBindAndSave = async () => {
       if (!fingerprint) return;
+
+      // Final Sanity Check on Credentials before saving
+      try {
+          if (formData.username) inputValidator.validate(formData.username, 'SAFE_TEXT', 'Username');
+          if (formData.password) inputValidator.validate(formData.password, 'PASSWORD', 'Password');
+      } catch (e: any) {
+          setError(e.message);
+          return;
+      }
 
       const newCamera: Camera = {
           id: `cam_${Date.now()}`,

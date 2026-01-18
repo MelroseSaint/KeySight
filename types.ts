@@ -32,7 +32,7 @@ export interface User {
 export interface SecurityEvent {
   id: string;
   timestamp: number;
-  type: 'AUTH' | 'MOTION' | 'WIFI' | 'SYSTEM' | 'EXPORT' | 'STORAGE' | 'CONFIG' | 'EVIDENCE_SNAPSHOT' | 'EVIDENCE_SIMULATION' | 'VIDEO_CLIP' | 'LOCK_EVIDENCE' | 'SHARE_LINK' | 'TOMBSTONE' | 'SCAN_NETWORK';
+  type: 'AUTH' | 'MOTION' | 'WIFI' | 'SYSTEM' | 'EXPORT' | 'STORAGE' | 'CONFIG' | 'EVIDENCE_SNAPSHOT' | 'EVIDENCE_SIMULATION' | 'VIDEO_CLIP' | 'LOCK_EVIDENCE' | 'SHARE_LINK' | 'TOMBSTONE' | 'SCAN_NETWORK' | 'SECURITY_VIOLATION';
   description: string;
   severity: 'info' | 'warning' | 'critical';
   hash: string; // Integrity hash

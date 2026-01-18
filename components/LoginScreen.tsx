@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Key, Server, AlertCircle, Copy, CheckCircle, Smartphone, Lock, Cpu, Globe, RefreshCw, Clock } from 'lucide-react';
 import { secureStorage } from '../utils/secureStorage';
+import { inputValidator } from '../utils/inputSecurity';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -144,17 +145,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         return;
     }
 
-    const inputHash = await secureStorage.sha256(inputKey.trim().toUpperCase());
+    // --- INPUT SECURITY: Master Key Validation ---
+    try {
+        const validatedKey = inputValidator.validate(inputKey.trim(), 'MASTER_KEY', 'Master Access Key');
+        
+        const inputHash = await secureStorage.sha256(validatedKey);
 
-    setTimeout(() => {
-      if (inputHash === storedHash) {
+        setTimeout(() => {
+          if (inputHash === storedHash) {
+            setLoading(false);
+            setMode('MFA'); // Proceed to MFA
+          } else {
+            setError('INVALID ACCESS KEY. ACCESS DENIED.');
+            setLoading(false);
+          }
+        }, 1000);
+
+    } catch (e: any) {
+        setError(e.message || 'INVALID KEY FORMAT');
         setLoading(false);
-        setMode('MFA'); // Proceed to MFA
-      } else {
-        setError('INVALID ACCESS KEY. ACCESS DENIED.');
-        setLoading(false);
-      }
-    }, 1000);
+    }
   };
 
   const handleMfaSubmit = (e: React.FormEvent) => {

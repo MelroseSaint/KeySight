@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Save, Disc, FileVideo } from 'lucide-react';
+import { Save, Disc, FileVideo, AlertTriangle } from 'lucide-react';
+import { inputValidator } from '../utils/inputSecurity';
 
 interface SaveRecordingModalProps {
   isOpen: boolean;
@@ -18,6 +19,17 @@ export const SaveRecordingModal: React.FC<SaveRecordingModalProps> = ({
   duration = '0s'
 }) => {
   const [title, setTitle] = useState(defaultTitle);
+  const [error, setError] = useState('');
+
+  const handleSave = () => {
+      try {
+          // Input Security: Validate Filename
+          const cleanTitle = inputValidator.validate(title || defaultTitle, 'FILENAME', 'Recording Title');
+          onSave(cleanTitle);
+      } catch (e: any) {
+          setError(e.message);
+      }
+  };
 
   if (!isOpen) return null;
 
@@ -41,16 +53,26 @@ export const SaveRecordingModal: React.FC<SaveRecordingModalProps> = ({
                     <FileVideo className="absolute left-3 top-2.5 w-4 h-4 text-security-dim" />
                     <input 
                         value={title}
-                        onChange={(e) => setTitle(e.target.value)}
+                        onChange={(e) => {
+                            setTitle(e.target.value);
+                            setError('');
+                        }}
                         className="w-full bg-black border border-security-border p-2 pl-9 text-xs font-mono text-security-text focus:border-security-accent outline-none"
-                        placeholder="e.g., Suspicious activity at Gate 1"
+                        placeholder="e.g., Gate_1_Suspicious_Activity"
                         autoFocus
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter') onSave(title || defaultTitle);
+                            if (e.key === 'Enter') handleSave();
                         }}
                     />
                 </div>
             </div>
+
+            {error && (
+                <div className="flex items-center gap-2 p-2 bg-security-alert/10 border border-security-alert/30 text-security-alert text-[10px] font-mono">
+                    <AlertTriangle className="w-3 h-3" />
+                    {error}
+                </div>
+            )}
 
             <div className="flex gap-3 pt-2">
                 <button 
@@ -60,7 +82,7 @@ export const SaveRecordingModal: React.FC<SaveRecordingModalProps> = ({
                     DISCARD
                 </button>
                 <button 
-                    onClick={() => onSave(title || defaultTitle)}
+                    onClick={handleSave}
                     className="flex-1 py-3 bg-security-accent text-black hover:bg-white text-xs font-mono font-bold flex items-center justify-center gap-2 transition-colors"
                 >
                     <Save className="w-3 h-3" /> SAVE TO STORAGE
