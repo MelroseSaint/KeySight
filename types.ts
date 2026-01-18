@@ -1,4 +1,5 @@
 
+
 export interface Camera {
   id: string;
   name: string;
@@ -32,7 +33,7 @@ export interface User {
 export interface SecurityEvent {
   id: string;
   timestamp: number;
-  type: 'AUTH' | 'MOTION' | 'WIFI' | 'SYSTEM' | 'EXPORT' | 'STORAGE' | 'CONFIG' | 'EVIDENCE_SNAPSHOT' | 'EVIDENCE_SIMULATION' | 'VIDEO_CLIP' | 'LOCK_EVIDENCE' | 'SHARE_LINK' | 'TOMBSTONE' | 'SCAN_NETWORK' | 'SECURITY_VIOLATION';
+  type: 'AUTH' | 'MOTION' | 'WIFI' | 'SYSTEM' | 'EXPORT' | 'STORAGE' | 'CONFIG' | 'EVIDENCE_SNAPSHOT' | 'EVIDENCE_SIMULATION' | 'VIDEO_CLIP' | 'LOCK_EVIDENCE' | 'SHARE_LINK' | 'TOMBSTONE' | 'SCAN_NETWORK' | 'SECURITY_VIOLATION' | 'INCIDENT' | 'CONSENT_CHANGE';
   description: string;
   severity: 'info' | 'warning' | 'critical';
   hash: string; // Integrity hash
@@ -80,6 +81,9 @@ export interface StorageBlock {
   signature: string;
 }
 
+export type ComplianceStandard = 'NONE' | 'SOC2_TYPE_1' | 'ISO_27001' | 'GDPR_CCPA_STRICT';
+export type ConsentMode = 'ONE_PARTY' | 'ALL_PARTY';
+
 export interface SystemSettings {
   // Feed Settings
   showOverlays: boolean;
@@ -100,7 +104,18 @@ export interface SystemSettings {
   motionAlerts: boolean;
   wifiAlerts: boolean;
   
-  // Legal / Consent
+  // Compliance & Governance
   legalConsentAccepted: boolean;
   disclaimerVersion: string;
+  complianceStandard: ComplianceStandard;
+  consentMode: ConsentMode;
+  requireDualAuthForDelete: boolean;
+  autoEvidenceLocking: boolean;
+}
+
+export interface TrustMetric {
+    score: number; // 0-100
+    integrity: 'VERIFIED' | 'COMPROMISED';
+    complianceStatus: 'COMPLIANT' | 'NON_COMPLIANT' | 'PENDING';
+    lastAudit: number;
 }

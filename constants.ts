@@ -34,5 +34,9 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   motionAlerts: true,
   wifiAlerts: true,
   legalConsentAccepted: false,
-  disclaimerVersion: "v1.0-STD"
+  disclaimerVersion: "v1.0-STD",
+  complianceStandard: 'NONE',
+  consentMode: 'ONE_PARTY',
+  requireDualAuthForDelete: false,
+  autoEvidenceLocking: true
 };

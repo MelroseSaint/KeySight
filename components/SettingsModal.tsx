@@ -1,7 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
-import { Camera, SystemSettings } from '../types';
-import { X, Lock, Shield, HardDrive, Eye, Activity, FileText, Trash2, Save, Key, AlertTriangle, CheckCircle, Sliders, Cpu, Hash, Globe, Wifi, ShieldCheck, Mic, MicOff } from 'lucide-react';
+import { Camera, SystemSettings, ComplianceStandard, ConsentMode } from '../types';
+import { X, Lock, Shield, HardDrive, Eye, Activity, FileText, Trash2, Save, Key, AlertTriangle, CheckCircle, Sliders, Cpu, Hash, Globe, Wifi, ShieldCheck, Mic, Scale, FileCheck, ClipboardCheck, BookOpen } from 'lucide-react';
+import { secureStorage } from '../utils/secureStorage';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -29,9 +31,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [authorized, setAuthorized] = useState(false);
   const [authInput, setAuthInput] = useState('');
   const [authError, setAuthError] = useState('');
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'CAMERAS' | 'STORAGE' | 'LEGAL'>('LEGAL');
+  const [activeTab, setActiveTab] = useState<'GENERAL' | 'CAMERAS' | 'STORAGE' | 'GOVERNANCE'>('GOVERNANCE');
   const [localSettings, setLocalSettings] = useState<SystemSettings>(settings);
   const [isSaving, setIsSaving] = useState(false);
+  const [auditGenerating, setAuditGenerating] = useState(false);
 
   // Reset auth state when modal opens
   useEffect(() => {
@@ -40,12 +43,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         setAuthInput('');
         setAuthError('');
         setLocalSettings(settings);
-        // Force LEGAL tab if consent not given
+        // Force Governance tab if consent not given
         if (!settings.legalConsentAccepted) {
-            setActiveTab('LEGAL');
+            setActiveTab('GOVERNANCE');
         } else {
             // Default to verify screen effectively
-            setActiveTab('LEGAL'); // Use Legal/Auth as landing
+            setActiveTab('GOVERNANCE'); // Use Governance/Auth as landing
         }
     }
   }, [isOpen, settings]);
@@ -90,11 +93,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setLocalSettings(prev => ({...prev, legalConsentAccepted: checked}));
   };
 
+  const handleGenerateAuditPackage = async () => {
+      setAuditGenerating(true);
+      try {
+          const report = await secureStorage.generateAuditPackage();
+          const blob = new Blob([report], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `KeySight_Compliance_Audit_${Date.now()}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+      } catch (e) {
+          alert("Audit generation failed.");
+      } finally {
+          setAuditGenerating(false);
+      }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-      <div className="w-full max-w-4xl bg-security-panel border border-security-border shadow-2xl flex flex-col h-[85vh] rounded-sm overflow-hidden">
+      <div className="w-full max-w-5xl bg-security-panel border border-security-border shadow-2xl flex flex-col h-[85vh] rounded-sm overflow-hidden">
         
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-security-border bg-security-black shrink-0">
@@ -124,6 +146,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <div className="p-3 bg-security-panel border border-security-border text-xs font-mono">GENERAL</div>
                             <div className="p-3 bg-security-panel border border-security-border text-xs font-mono">CAMERAS</div>
                             <div className="p-3 bg-security-panel border border-security-border text-xs font-mono">STORAGE</div>
+                            <div className="p-3 bg-security-panel border border-security-border text-xs font-mono">GOVERNANCE</div>
                         </div>
                     </div>
                 ) : (
@@ -147,10 +170,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <HardDrive className="w-3 h-3" /> STORAGE
                         </button>
                         <button 
-                            onClick={() => setActiveTab('LEGAL')}
-                            className={`p-3 text-left text-xs font-mono font-bold flex items-center gap-2 border transition-all ${activeTab === 'LEGAL' ? 'bg-security-accent/10 border-security-accent text-security-accent' : 'border-transparent text-security-dim hover:text-white hover:bg-white/5'}`}
+                            onClick={() => setActiveTab('GOVERNANCE')}
+                            className={`p-3 text-left text-xs font-mono font-bold flex items-center gap-2 border transition-all ${activeTab === 'GOVERNANCE' ? 'bg-security-accent/10 border-security-accent text-security-accent' : 'border-transparent text-security-dim hover:text-white hover:bg-white/5'}`}
                         >
-                            <FileText className="w-3 h-3" /> COMPLIANCE
+                            <Scale className="w-3 h-3" /> GOVERNANCE
                         </button>
                     </div>
                 )}
@@ -280,16 +303,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                             <div className={`w-3 h-3 rounded-full bg-black shadow-sm transition-transform ${localSettings.motionAlerts ? 'translate-x-4' : 'translate-x-0'}`} />
                                         </div>
                                     </label>
-
-                                    <label className="flex items-center justify-between cursor-pointer group mt-2">
-                                        <span className="text-xs font-mono text-security-dim group-hover:text-security-text">WiFi Proximity Alerts</span>
-                                        <div 
-                                            onClick={() => setLocalSettings(s => ({...s, wifiAlerts: !s.wifiAlerts}))}
-                                            className={`w-8 h-4 rounded-full p-0.5 transition-colors ${localSettings.wifiAlerts ? 'bg-security-accent' : 'bg-security-border'}`}
-                                        >
-                                            <div className={`w-3 h-3 rounded-full bg-black shadow-sm transition-transform ${localSettings.wifiAlerts ? 'translate-x-4' : 'translate-x-0'}`} />
-                                        </div>
-                                    </label>
                                 </div>
                                 
                                 <div className="p-4 border border-security-alert/30 bg-security-alert/5 space-y-3">
@@ -302,7 +315,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         <div 
                                             onClick={() => {
                                                 if (!localSettings.legalConsentAccepted) {
-                                                    alert("LEGAL ERROR: You must accept compliance terms in the 'COMPLIANCE' tab before enabling audio surveillance.");
+                                                    alert("LEGAL ERROR: You must accept compliance terms in the 'GOVERNANCE' tab before enabling audio surveillance.");
                                                     return;
                                                 }
                                                 setLocalSettings(s => ({...s, audioRecordingEnabled: !s.audioRecordingEnabled}));
@@ -406,11 +419,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     </div>
                                 </div>
                             ))}
-                            {cameras.length === 0 && (
-                                <div className="p-8 text-center border-2 border-dashed border-security-border">
-                                    <p className="text-xs font-mono text-security-dim">NO DEVICES REGISTERED IN SECURE STORAGE</p>
-                                </div>
-                            )}
                         </div>
                      </div>
                 )}
@@ -472,20 +480,93 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                 )}
 
-                {authorized && activeTab === 'LEGAL' && (
+                {authorized && activeTab === 'GOVERNANCE' && (
                      <div className="space-y-6 animate-in fade-in duration-300">
                         <div className="flex items-center gap-2 border-b border-security-border pb-2 mb-4">
-                            <FileText className="w-4 h-4 text-security-accent" />
-                            <h3 className="text-sm font-mono font-bold text-security-text">LEGAL COMPLIANCE & CONSENT</h3>
+                            <Scale className="w-4 h-4 text-security-accent" />
+                            <h3 className="text-sm font-mono font-bold text-security-text">COMPLIANCE, GOVERNANCE & TRUST</h3>
                         </div>
                         
-                        <div className="h-64 overflow-y-auto border border-security-border bg-black p-4 text-[10px] font-mono text-security-dim leading-relaxed custom-scrollbar">
-                            <p className="mb-2"><strong className="text-security-text">1. PRIVACY POLICY:</strong> KeySight is a local-only surveillance tool. No data is transmitted to cloud servers. You are solely responsible for ensuring compliance with local surveillance laws, including GDPR and CCPA where applicable.</p>
-                            <p className="mb-2"><strong className="text-security-text">2. DATA OWNERSHIP:</strong> All footage and logs are encrypted with a key derived from your Master Access Key. KeySight developers cannot recover lost keys or decrypt data.</p>
-                            <p className="mb-2"><strong className="text-security-text">3. FAIL-CLOSED ARCHITECTURE:</strong> If system integrity checks fail or the Master Key is not provided, the system will cease all recording and viewing functions immediately to prevent unauthorized access.</p>
-                            <p className="mb-2"><strong className="text-security-text">4. NO AI LIABILITY:</strong> This system uses deterministic algorithms for motion and signal detection. It does not use generative AI or probabilistic machine learning models. We are not liable for missed detections.</p>
-                            <p className="mb-2"><strong className="text-security-text">5. AUDIO SURVEILLANCE:</strong> Audio recording (wiretapping) is subject to strict laws requiring one-party or all-party consent depending on jurisdiction. By enabling audio, you certify that you have obtained all necessary consents.</p>
-                            <p><strong className="text-security-text">6. CONSENT:</strong> By enabling this system, you confirm you have the legal right to monitor the configured areas.</p>
+                        {/* Compliance Frameworks */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-mono text-security-dim uppercase">Active Compliance Standard</label>
+                                <select 
+                                    value={localSettings.complianceStandard}
+                                    onChange={e => setLocalSettings(s => ({...s, complianceStandard: e.target.value as ComplianceStandard}))}
+                                    className="w-full bg-black border border-security-border text-xs font-mono p-2 text-security-text focus:border-security-accent outline-none"
+                                >
+                                    <option value="NONE">None (Development Mode)</option>
+                                    <option value="SOC2_TYPE_1">SOC 2 Type I (Security & Availability)</option>
+                                    <option value="ISO_27001">ISO 27001 (ISMS)</option>
+                                    <option value="GDPR_CCPA_STRICT">GDPR / CCPA (Strict Privacy)</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-mono text-security-dim uppercase">Legal Consent Mode</label>
+                                <select 
+                                    value={localSettings.consentMode}
+                                    onChange={e => setLocalSettings(s => ({...s, consentMode: e.target.value as ConsentMode}))}
+                                    className="w-full bg-black border border-security-border text-xs font-mono p-2 text-security-text focus:border-security-accent outline-none"
+                                >
+                                    <option value="ONE_PARTY">One-Party Consent (Default)</option>
+                                    <option value="ALL_PARTY">All-Party Consent (Strict)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Operational Controls */}
+                        <div className="p-4 border border-security-border bg-security-panel/50 space-y-4">
+                            <h4 className="text-xs font-mono text-security-accent uppercase mb-2 flex items-center gap-2">
+                                <ClipboardCheck className="w-3 h-3" /> Operational Risk Controls
+                            </h4>
+                            
+                            <label className="flex items-center justify-between cursor-pointer group">
+                                <span className="text-xs font-mono text-security-dim group-hover:text-security-text">Require Dual-Auth for Deletion</span>
+                                <div 
+                                    onClick={() => setLocalSettings(s => ({...s, requireDualAuthForDelete: !s.requireDualAuthForDelete}))}
+                                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${localSettings.requireDualAuthForDelete ? 'bg-security-accent' : 'bg-security-border'}`}
+                                >
+                                    <div className={`w-3 h-3 rounded-full bg-black shadow-sm transition-transform ${localSettings.requireDualAuthForDelete ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                            </label>
+
+                            <label className="flex items-center justify-between cursor-pointer group">
+                                <span className="text-xs font-mono text-security-dim group-hover:text-security-text">Auto-Lock Evidence on Incident</span>
+                                <div 
+                                    onClick={() => setLocalSettings(s => ({...s, autoEvidenceLocking: !s.autoEvidenceLocking}))}
+                                    className={`w-8 h-4 rounded-full p-0.5 transition-colors ${localSettings.autoEvidenceLocking ? 'bg-security-accent' : 'bg-security-border'}`}
+                                >
+                                    <div className={`w-3 h-3 rounded-full bg-black shadow-sm transition-transform ${localSettings.autoEvidenceLocking ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Audit & Export */}
+                        <div className="p-4 border border-security-border bg-security-black space-y-4">
+                            <h4 className="text-xs font-mono text-security-accent uppercase mb-2 flex items-center gap-2">
+                                <BookOpen className="w-3 h-3" /> Audit Readiness
+                            </h4>
+                            <p className="text-[10px] font-mono text-security-dim mb-2">
+                                Generate a cryptographically verifiable audit package containing system logs, integrity chains, and configuration proofs.
+                            </p>
+                            <button 
+                                onClick={handleGenerateAuditPackage}
+                                disabled={auditGenerating}
+                                className="w-full py-2 bg-security-panel border border-security-border hover:border-security-accent text-security-text text-xs font-mono font-bold transition-colors flex items-center justify-center gap-2"
+                            >
+                                {auditGenerating ? <Activity className="w-3 h-3 animate-spin" /> : <FileCheck className="w-3 h-3" />}
+                                {auditGenerating ? 'COMPILING PROOFS...' : 'EXPORT LEGAL AUDIT PACKAGE (JSON)'}
+                            </button>
+                        </div>
+
+                        {/* Legal Acceptance Block */}
+                        <div className="h-48 overflow-y-auto border border-security-border bg-black p-4 text-[10px] font-mono text-security-dim leading-relaxed custom-scrollbar">
+                            <p className="mb-2"><strong className="text-security-text">1. PRIVACY & DATA SOVEREIGNTY:</strong> KeySight is a Local-First architecture. No data crosses the browser boundary to cloud servers. You are the sole Data Controller.</p>
+                            <p className="mb-2"><strong className="text-security-text">2. CHAIN OF CUSTODY:</strong> All evidence is cryptographically chained. Modifying local storage directly invalidates the audit trail, rendering evidence inadmissible.</p>
+                            <p className="mb-2"><strong className="text-security-text">3. FAIL-CLOSED ARCHITECTURE:</strong> If system integrity checks fail, the system halts. This is a deliberate security feature.</p>
+                            <p className="mb-2"><strong className="text-security-text">4. DETERMINISTIC BEHAVIOR:</strong> No AI/ML "black boxes". All alerts are mathematically derived from pixel thresholds.</p>
+                            <p className="mb-2"><strong className="text-security-text">5. CONSENT & LIABILITY:</strong> By enabling this system, you attest to compliance with all applicable surveillance laws in your jurisdiction (e.g., ECPA, GDPR, CCPA).</p>
                         </div>
 
                         <div className="flex items-start gap-3 p-4 bg-security-panel border border-security-border">
@@ -500,7 +581,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 <CheckCircle className="absolute pointer-events-none opacity-0 peer-checked:opacity-100 text-black w-3 h-3 left-0.5 top-0.5" />
                             </div>
                             <label htmlFor="legal-check" className="text-xs font-mono text-security-text cursor-pointer select-none">
-                                I ACKNOWLEDGE THE ABOVE TERMS AND ACCEPT FULL RESPONSIBILITY FOR THE OPERATION OF THIS SYSTEM.
+                                I HAVE READ THE GOVERNANCE POLICY AND ACCEPT THE ROLE OF SYSTEM ADMINISTRATOR AND DATA CONTROLLER.
                             </label>
                         </div>
                      </div>

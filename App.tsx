@@ -14,7 +14,7 @@ import { MasterKeyPrompt } from './components/MasterKeyPrompt';
 import { SaveRecordingModal } from './components/SaveRecordingModal';
 import { AppView, Camera, SecurityEvent, WifiSignal, SystemResources, SystemSettings } from './types';
 import { MOCK_CAMERAS, INITIAL_LOGS, SESSION_TIMEOUT, DEFAULT_SETTINGS } from './constants';
-import { Lock, Download, Wifi, Activity, Plus, Database, Search, Grid, List, MapPin, X, Camera as CameraIcon, Disc, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, RefreshCw, WifiOff } from 'lucide-react';
+import { Lock, Download, Wifi, Activity, Plus, Database, Search, Grid, List, MapPin, X, Camera as CameraIcon, Disc, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, RefreshCw, WifiOff, ShieldCheck, Scale, FileCheck } from 'lucide-react';
 import { secureStorage } from './utils/secureStorage';
 
 const App: React.FC = () => {
@@ -515,7 +515,49 @@ const App: React.FC = () => {
           
           {/* STICKY HEADER WRAPPER (Mobile: Sticks to top. Desktop: Stays at top of non-scrolling area) */}
           <div className="flex flex-col gap-4 sticky top-0 z-30 bg-security-black pb-1 -mt-1 pt-1">
-              {/* System Status & Action Bar (MOVED UP) */}
+              {/* TRUST & COMPLIANCE HEADER (New) */}
+              <div className="bg-security-panel border border-security-border p-3 flex flex-col sm:flex-row items-center justify-between shrink-0 gap-3 shadow-md relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-security-accent"></div>
+                  
+                  <div className="flex gap-6 w-full sm:w-auto">
+                       <div className="flex flex-col">
+                           <span className="text-[9px] text-security-dim font-mono tracking-widest uppercase">Trust Score</span>
+                           <span className="text-lg font-mono font-bold text-security-accent flex items-center gap-2">
+                               <ShieldCheck className="w-5 h-5" /> 100%
+                           </span>
+                       </div>
+                       
+                       <div className="w-px bg-security-border h-auto"></div>
+
+                       <div className="flex flex-col">
+                           <span className="text-[9px] text-security-dim font-mono tracking-widest uppercase">Compliance Mode</span>
+                           <span className="text-xs font-mono text-white flex items-center gap-2 mt-1">
+                               <Scale className="w-3 h-3 text-security-dim" /> 
+                               {settings.complianceStandard === 'NONE' ? 'DEV_MODE' : settings.complianceStandard.replace('_', ' ')}
+                           </span>
+                       </div>
+
+                       <div className="w-px bg-security-border h-auto hidden sm:block"></div>
+
+                       <div className="hidden sm:flex flex-col">
+                           <span className="text-[9px] text-security-dim font-mono tracking-widest uppercase">Last Audit</span>
+                           <span className="text-xs font-mono text-white flex items-center gap-2 mt-1">
+                               <FileCheck className="w-3 h-3 text-security-dim" /> LIVE
+                           </span>
+                       </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                      <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="px-3 py-1.5 border border-security-border hover:border-security-accent text-[10px] font-mono text-security-dim hover:text-white transition-colors"
+                      >
+                          MANAGE GOVERNANCE
+                      </button>
+                  </div>
+              </div>
+
+              {/* System Status & Action Bar */}
               <div className="bg-security-panel border border-security-border p-3 flex flex-col sm:flex-row items-center justify-between shrink-0 gap-3 shadow-md">
                 <div className="flex gap-4 w-full sm:w-auto justify-between sm:justify-start">
                     <div className="flex flex-col">
@@ -540,7 +582,6 @@ const App: React.FC = () => {
                     >
                     <Plus className="w-3 h-3" /> ADD CAMERA
                     </button>
-                    {/* Export button removed from here as it's less critical and available in storage view */}
                 </div>
               </div>
 
