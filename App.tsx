@@ -10,7 +10,8 @@ import { AddCameraModal } from './components/AddCameraModal';
 import { SettingsModal } from './components/SettingsModal';
 import { StorageBrowser } from './components/StorageBrowser';
 import { NetworkScanner } from './components/NetworkScanner';
-import { MasterKeyPrompt } from './components/MasterKeyPrompt'; // Import Prompt
+import { MasterKeyPrompt } from './components/MasterKeyPrompt';
+import { SaveRecordingModal } from './components/SaveRecordingModal';
 import { AppView, Camera, SecurityEvent, WifiSignal, SystemResources, SystemSettings } from './types';
 import { MOCK_CAMERAS, INITIAL_LOGS, SESSION_TIMEOUT, DEFAULT_SETTINGS } from './constants';
 import { Lock, Download, Wifi, Activity, Plus, Database, Search, Grid, List, MapPin, X, Camera as CameraIcon, Disc, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, RefreshCw, WifiOff } from 'lucide-react';
@@ -28,6 +29,14 @@ const App: React.FC = () => {
   
   // Storage Auth State
   const [isStorageAuthOpen, setIsStorageAuthOpen] = useState(false);
+
+  // Recording Save State
+  const [pendingSave, setPendingSave] = useState<{
+      cameraId: string;
+      blob: Blob;
+      startTime: number;
+      duration: string;
+  } | null>(null);
   
   // Dashboard State
   const [searchQuery, setSearchQuery] = useState('');
@@ -250,12 +259,25 @@ const App: React.FC = () => {
     });
   };
 
-  const handleRecordingComplete = async (cameraId: string, blob: Blob) => {
-      const cam = cameras.find(c => c.id === cameraId);
-      const startTime = recordingCameras.get(cameraId) || (Date.now() - 1000); 
-      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  // Called by CameraFeed when recording stops
+  const handleRecordingComplete = async (cameraId: string, blob: Blob, durationMs: number) => {
+      const startTime = Date.now() - durationMs;
+      const durationStr = (durationMs / 1000).toFixed(1) + 's';
+      
+      setPendingSave({
+          cameraId,
+          blob,
+          startTime,
+          duration: durationStr
+      });
+  };
 
-      // Convert Blob to Base64
+  // Called by Modal
+  const handleConfirmSave = (title: string) => {
+      if (!pendingSave) return;
+      const { cameraId, blob, startTime, duration } = pendingSave;
+      const cam = cameras.find(c => c.id === cameraId);
+      
       const reader = new FileReader();
       reader.onloadend = async () => {
           const base64data = reader.result as string;
@@ -265,14 +287,21 @@ const App: React.FC = () => {
               cameraId: cameraId,
               location: cam?.location || 'Unknown',
               timestamp: startTime,
-              description: `Real-time Recording (${duration}s)`,
+              description: title || `Real-time Recording (${duration})`,
               data: base64data,
               metadata: { duration: duration, size: blob.size, mimeType: blob.type }
           });
 
-          addLog('SYSTEM', `Video segment saved for ${cameraId} (${(blob.size/1024).toFixed(1)} KB)`, 'info');
+          addLog('SYSTEM', `Video segment saved for ${cameraId} as "${title}"`, 'info');
       };
       reader.readAsDataURL(blob);
+
+      setPendingSave(null);
+  };
+
+  const handleDiscardSave = () => {
+      addLog('SYSTEM', 'Recording discarded by user choice', 'warning');
+      setPendingSave(null);
   };
 
   const handlePtz = (action: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'AUTO') => {
@@ -385,6 +414,14 @@ const App: React.FC = () => {
         masterKeyHash={getStoredHash()}
       />
 
+      <SaveRecordingModal 
+        isOpen={!!pendingSave}
+        onSave={handleConfirmSave}
+        onDiscard={handleDiscardSave}
+        defaultTitle={`Recording_${new Date().toLocaleTimeString().replace(/:/g, '')}`}
+        duration={pendingSave?.duration}
+      />
+
       {/* EXPANDED CAMERA VIEW OVERLAY */}
       {selectedCamera && (
           <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
@@ -414,7 +451,8 @@ const App: React.FC = () => {
                              onMotionDetected={handleMotionDetected}
                              settings={settings}
                              isRecording={recordingCameras.has(selectedCamera.id)}
-                             onRecordingComplete={(blob) => handleRecordingComplete(selectedCamera.id, blob)}
+                             onRecordingComplete={(blob, duration) => handleRecordingComplete(selectedCamera.id, blob, duration)}
+                             isExpanded={true} // Full color mode enabled
                           />
                       </div>
                   </div>
@@ -556,7 +594,7 @@ const App: React.FC = () => {
                                 onMotionDetected={handleMotionDetected} 
                                 settings={settings}
                                 isRecording={recordingCameras.has(cam.id)}
-                                onRecordingComplete={(blob) => handleRecordingComplete(cam.id, blob)}
+                                onRecordingComplete={(blob, duration) => handleRecordingComplete(cam.id, blob, duration)}
                                 onExpand={(c) => setSelectedCamera(c)}
                               />
                             ))}

@@ -10,10 +10,11 @@ interface CameraFeedProps {
   settings?: SystemSettings;
   onExpand?: (camera: Camera) => void;
   isRecording?: boolean;
-  onRecordingComplete?: (blob: Blob) => void;
+  onRecordingComplete?: (blob: Blob, duration: number) => void;
+  isExpanded?: boolean; // New prop for clear viewing
 }
 
-export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected, settings, onExpand, isRecording, onRecordingComplete }) => {
+export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected, settings, onExpand, isRecording, onRecordingComplete, isExpanded = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const diffCanvasRef = useRef<HTMLCanvasElement | null>(null); // Offscreen canvas for processing
@@ -21,6 +22,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
   const lastRecordTimeRef = useRef<number>(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recordingStartTimeRef = useRef<number>(0); // Track start time locally
   
   const [streamActive, setStreamActive] = useState(false);
   const [audioActive, setAudioActive] = useState(false);
@@ -45,8 +47,8 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
         try {
           const constraints: MediaStreamConstraints = {
               video: { 
-                  width: { ideal: 640 }, 
-                  height: { ideal: 480 },
+                  width: { ideal: isExpanded ? 1920 : 640 }, // Request higher res if expanded
+                  height: { ideal: isExpanded ? 1080 : 480 },
                   frameRate: { ideal: 30 }
               },
               audio: settings?.audioRecordingEnabled ? {
@@ -90,7 +92,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [camera.isWebcam, camera.status, settings?.audioRecordingEnabled]);
+  }, [camera.isWebcam, camera.status, settings?.audioRecordingEnabled, isExpanded]);
 
   // Handle Recording Logic (Synchronized A/V)
   useEffect(() => {
@@ -102,14 +104,18 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
           // If isRecording is true, App has validated session.
           
           try {
-              // Prefer VP8/Opus for WebM
-              const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') 
-                  ? 'video/webm;codecs=vp8,opus' 
-                  : 'video/webm';
+              // Prefer MP4 if available (Safari/Chrome), fallback to WebM
+              let mimeType = 'video/webm';
+              if (MediaRecorder.isTypeSupported('video/mp4')) {
+                  mimeType = 'video/mp4';
+              } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+                  mimeType = 'video/webm;codecs=vp8,opus';
+              }
 
               const recorder = new MediaRecorder(stream, { mimeType });
               mediaRecorderRef.current = recorder;
               chunksRef.current = [];
+              recordingStartTimeRef.current = Date.now(); // Mark start time
 
               recorder.ondataavailable = (e) => {
                   if (e.data && e.data.size > 0) {
@@ -118,9 +124,10 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
               };
 
               recorder.onstop = () => {
+                  const duration = Date.now() - recordingStartTimeRef.current;
                   const blob = new Blob(chunksRef.current, { type: mimeType });
                   if (onRecordingComplete) {
-                      onRecordingComplete(blob);
+                      onRecordingComplete(blob, duration);
                   }
                   chunksRef.current = [];
               };
@@ -253,10 +260,11 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
     return () => cancelAnimationFrame(animationFrameId);
   }, [streamActive, camera.status, camera.isWebcam, camera.id, onMotionDetected, settings?.showMotionRects, settings?.motionThreshold]); 
 
-  const opacity = settings ? settings.overlayOpacity : 0.8;
+  // If expanded, use 1.0 opacity, otherwise use settings or default
+  const overlayOpacity = isExpanded ? 0 : (settings ? settings.overlayOpacity : 0.8);
 
   return (
-    <div ref={containerRef} className={`relative bg-security-black border rounded-sm overflow-hidden group h-48 sm:h-64 shadow-lg shrink-0 transition-all ${isRecording ? 'border-security-alert' : 'border-security-border hover:border-security-accent/50'}`}>
+    <div ref={containerRef} className={`relative bg-security-black border rounded-sm overflow-hidden group shadow-lg shrink-0 transition-all ${isExpanded ? 'h-full border-none' : 'h-48 sm:h-64 border-security-border hover:border-security-accent/50'} ${isRecording ? 'border-security-alert' : ''}`}>
       
       {/* Hidden Video Element for Source - MUTED to prevent feedback loop during capture */}
       {camera.isWebcam && (
@@ -265,7 +273,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
             autoPlay 
             playsInline 
             muted 
-            className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-luminosity"
+            className={`absolute inset-0 w-full h-full object-cover transition-all duration-300 ${isExpanded ? 'opacity-100' : 'opacity-60 mix-blend-luminosity'}`}
           />
       )}
 
@@ -290,15 +298,19 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
           </div>
       )}
 
-      {/* Scanline & Grid Overlay */}
-      <div 
-        className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] pointer-events-none transition-opacity duration-300" 
-        style={{ opacity: opacity }}
-      />
-      <div 
-        className="absolute inset-0 border border-white/5 bg-[size:20px_20px] bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] pointer-events-none transition-opacity duration-300"
-        style={{ opacity: opacity }}
-      ></div>
+      {/* Scanline & Grid Overlay - HIDDEN IF EXPANDED */}
+      {!isExpanded && (
+        <>
+          <div 
+            className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] pointer-events-none transition-opacity duration-300" 
+            style={{ opacity: overlayOpacity }}
+          />
+          <div 
+            className="absolute inset-0 border border-white/5 bg-[size:20px_20px] bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] pointer-events-none transition-opacity duration-300"
+            style={{ opacity: overlayOpacity }}
+          ></div>
+        </>
+      )}
 
       {/* Header Info */}
       {settings?.showOverlays !== false && (
@@ -313,7 +325,7 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
                 )}
               </h3>
               <p className="text-[10px] text-security-dim font-mono tracking-tighter">
-                 {camera.ip} | ID:{camera.id.slice(-4)} | RES: {camera.isWebcam ? 'REALTIME' : 'N/A'}
+                 {camera.ip} | ID:{camera.id.slice(-4)} | RES: {isExpanded ? 'HD (EXPANDED)' : (camera.isWebcam ? 'REALTIME' : 'N/A')}
               </p>
             </div>
             <div className="flex gap-2">
@@ -357,8 +369,8 @@ export const CameraFeed: React.FC<CameraFeedProps> = ({ camera, onMotionDetected
         className="absolute inset-0 w-full h-full pointer-events-none z-20"
       />
 
-      {/* Footer Info */}
-      {settings?.showOverlays !== false && (
+      {/* Footer Info - Hide if expanded to keep clean, or keep minimal */}
+      {settings?.showOverlays !== false && !isExpanded && (
           <div className="absolute bottom-0 left-0 right-0 p-1 bg-black/80 backdrop-blur-sm border-t border-security-border flex justify-between items-center z-10">
              <span className="text-[10px] font-mono text-security-accent flex items-center gap-1">
                 <Lock className="w-2 h-2" /> TLS1.3

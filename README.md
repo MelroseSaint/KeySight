@@ -1,7 +1,7 @@
 
 # KeySight Security Platform
 
-![Version](https://img.shields.io/badge/version-1.1.0--BETA-blue)
+![Version](https://img.shields.io/badge/version-1.2.0--BETA-blue)
 ![Security](https://img.shields.io/badge/security-DETERMINISTIC-green)
 ![AI](https://img.shields.io/badge/AI-NONE-red)
 
@@ -18,6 +18,8 @@
 
 ### 📹 Secure Surveillance Dashboard
 *   **Real-time Feeds:** Low-latency video streaming with HUD overlays.
+*   **HD Video Recording:** Captures high-definition footage directly to encrypted storage. Intelligently prefers **MP4 (H.264/AAC)** on supported browsers (Safari/Chrome) with a seamless fallback to **WebM (VP8/Opus)**.
+*   **Custom Evidence Labeling:** Immediately title and tag recordings upon completion for easier retrieval.
 *   **Audio Surveillance:** Optional, wiretap-compliant audio recording. Requires explicit legal consent and includes visual active-mic indicators.
 *   **Motion Detection:** Configurable pixel-threshold algorithms with visual bounding boxes.
 *   **Privacy Masking:** Client-side blurring of sensitive regions.
@@ -31,11 +33,12 @@
 
 ### 🔐 Encrypted Local Storage & Evidence Vault
 *   **AES-GCM-256:** All video clips, snapshots, and logs are encrypted at rest using a key derived from your Master Password.
+*   **Format Preservation:** The storage engine preserves the original recording format (MP4 or WebM) and ensures exports use the correct file extensions.
 *   **Split-View Vault:** Dedicated "Evidence Vault" column for high-value clips, separate from general looping storage.
 *   **Strict Access Control:** Accessing the storage browser requires Master Key re-authentication.
 *   **Visual Obfuscation:** Locked evidence is **blurred and inaccessible** until explicitly unlocked with the Master Key.
 *   **Immutable Ledger:** Audit logs are stored as a hash chain; any tampering breaks the verification chain.
-*   **Secure Export:** Generate signed ZIP packages containing footage and a cryptographic manifest.
+*   **Smart ZIP Export:** Generate signed ZIP packages containing footage (MP4/WebM/JPG) and a cryptographic manifest.
 
 ### 👮‍♂️ Audit & Compliance
 *   **Immutable Logs:** Every system event (Auth, Motion, Config Change, Audio Toggle) is logged permanently.
@@ -48,6 +51,7 @@
 *   **Cryptography:** Web Crypto API (SubtleCrypto) for SHA-256 hashing and AES-GCM encryption.
 *   **Visualization:** Recharts for signal data, Canvas API for motion processing.
 *   **Storage:** Custom `SecureStorage` wrapper around IndexedDB/LocalStorage.
+*   **Compression:** JSZip for client-side archive generation.
 
 ## ⚡ Quick Start
 
